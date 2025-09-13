@@ -1,0 +1,85 @@
+{
+  "colors": {
+    "primary": "#7B61FF",
+    "primaryLight": "#9F87FF",
+    "primaryDark": "#5A3EDC",
+    "background": "#FFFFFF",
+    "backgroundSecondary": "#F8F8F8",
+    "chatBubbleSent": "#7B61FF",
+    "chatBubbleReceived": "#F0F0F0",
+    "textPrimary": "#1C1C1E",
+    "textSecondary": "#6C6C6C",
+    "textInverse": "#FFFFFF",
+    "border": "#E5E5EA",
+    "accent": "#FFB800",
+    "danger": "#FF3B30",
+    "success": "#34C759"
+  },
+  "fonts": {
+    "primary": "SF Pro Rounded",
+    "weights": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "sizes": {
+      "xs": 10,
+      "sm": 12,
+      "md": 14,
+      "lg": 16,
+      "xl": 18,
+      "xxl": 22,
+      "title": 28
+    }
+  },
+  "spacing": {
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "xxl": 32
+  },
+  "radii": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "full": 999
+  },
+  "shadows": {
+    "light": "0px 1px 3px rgba(0, 0, 0, 0.1)",
+    "medium": "0px 4px 6px rgba(0, 0, 0, 0.15)",
+    "strong": "0px 6px 12px rgba(0, 0, 0, 0.2)"
+  },
+  "components": {
+    "appBar": {
+      "background": "#FFFFFF",
+      "textColor": "#1C1C1E",
+      "iconColor": "#1C1C1E",
+      "height": 56
+    },
+    "chatBubble": {
+      "sentBackground": "#7B61FF",
+      "receivedBackground": "#F0F0F0",
+      "textColorSent": "#FFFFFF",
+      "textColorReceived": "#1C1C1E",
+      "borderRadius": 16,
+      "padding": 12
+    },
+    "buttonPrimary": {
+      "background": "#7B61FF",
+      "textColor": "#FFFFFF",
+      "radius": 12,
+      "paddingVertical": 12,
+      "paddingHorizontal": 20
+    },
+    "inputField": {
+      "background": "#F8F8F8",
+      "borderColor": "#E5E5EA",
+      "textColor": "#1C1C1E",
+      "radius": 12,
+      "padding": 12
+    }
+  }
+}

@@ -1,0 +1,48 @@
+-- ===========================
+-- جدول المستخدمين (Users)
+-- ===========================
+CREATE TABLE Users (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Username TEXT NOT NULL,
+    PasswordHash TEXT NOT NULL,
+    PhoneNumber TEXT UNIQUE NOT NULL,
+    DisplayName TEXT,
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    LastSeen DATETIME
+);
+
+-- ===========================
+-- جدول الرسائل (Messages)
+-- ===========================
+CREATE TABLE Messages (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    SenderId INTEGER NOT NULL,
+    ReceiverId INTEGER NOT NULL,
+    MessageType TEXT NOT NULL,   -- text, image, audio, video, file
+    Content TEXT,                -- النص إذا كانت رسالة نصية
+    SentAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    DeliveredAt DATETIME,
+    ReadAt DATETIME,
+    FOREIGN KEY (SenderId) REFERENCES Users(Id) ON DELETE CASCADE,
+    FOREIGN KEY (ReceiverId) REFERENCES Users(Id) ON DELETE CASCADE
+);
+
+-- ===========================
+-- جدول المرفقات (Attachments)
+-- ===========================
+CREATE TABLE Attachments (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    MessageId INTEGER NOT NULL,
+    FilePath TEXT NOT NULL,      -- مكان تخزين الملف عالسيرفر
+    FileType TEXT NOT NULL,      -- image/png, video/mp4, audio/mpeg, application/pdf...
+    FileSize INTEGER NOT NULL,   -- حجم الملف بالبايت
+    FOREIGN KEY (MessageId) REFERENCES Messages(Id) ON DELETE CASCADE
+);
+
+-- ===========================
+-- فهارس (Indexes) لتحسين الأداء
+-- ===========================
+CREATE INDEX IDX_Users_Phone ON Users(PhoneNumber);
+CREATE INDEX IDX_Messages_Sender ON Messages(SenderId);
+CREATE INDEX IDX_Messages_Receiver ON Messages(ReceiverId);
+CREATE INDEX IDX_Attachments_Message ON Attachments(MessageId);

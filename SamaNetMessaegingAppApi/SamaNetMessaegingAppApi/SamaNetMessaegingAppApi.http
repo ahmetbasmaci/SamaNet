@@ -1,0 +1,6 @@
+@SamaNetMessaegingAppApi_HostAddress = http://localhost:5293
+
+GET {{SamaNetMessaegingAppApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
