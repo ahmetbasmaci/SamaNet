@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'core/theme/app_style_config.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
+import 'core/constants/arabic_strings.dart';
 import 'data/services/api_client.dart';
 import 'data/services/auth_service.dart';
 import 'data/services/local_storage_service.dart';
@@ -41,9 +42,13 @@ class MessagingApp extends StatelessWidget {
     return BlocProvider<AuthBloc>(
       bloc: authBloc,
       child: MaterialApp(
-        title: 'Sama Net Messaging',
+        title: ArabicStrings.appTitle,
         theme: theme.theme,
+        locale: const Locale('ar', 'SA'),
         debugShowCheckedModeBanner: false,
+        builder: (context, child) {
+          return Directionality(textDirection: TextDirection.rtl, child: child!);
+        },
         home: BlocBuilder<AuthBloc, AuthState>(
           bloc: authBloc,
           builder: (context, state) {
@@ -83,7 +88,7 @@ class SplashScreen extends StatelessWidget {
             Icon(Icons.chat_bubble_outline, size: 100, color: theme.colorScheme.onPrimary),
             const SizedBox(height: 24),
             Text(
-              'Sama Net Messaging',
+              ArabicStrings.appTitle,
               style: theme.textTheme.displayLarge?.copyWith(color: theme.colorScheme.onPrimary),
             ),
             const SizedBox(height: 32),
@@ -102,9 +107,13 @@ class RegisterPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Register')),
-      body: const Center(
-        child: Text('Register Page\n(To be implemented)', textAlign: TextAlign.center, style: TextStyle(fontSize: 18)),
+      appBar: AppBar(title: Text(ArabicStrings.register)),
+      body: Center(
+        child: Text(
+          ArabicStrings.registerPagePlaceholder,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 18),
+        ),
       ),
     );
   }
@@ -118,7 +127,7 @@ class MainScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chats'),
+        title: Text(ArabicStrings.chats),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -129,20 +138,20 @@ class MainScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: const Center(
+      body: Center(
         child: Text(
-          'Main Screen\n(Chat list, navigation to be implemented)',
+          ArabicStrings.mainScreenPlaceholder,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18),
+          style: const TextStyle(fontSize: 18),
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: 0,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
-          BottomNavigationBarItem(icon: Icon(Icons.contacts), label: 'Contacts'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.chat), label: ArabicStrings.chats),
+          BottomNavigationBarItem(icon: const Icon(Icons.contacts), label: ArabicStrings.contacts),
+          BottomNavigationBarItem(icon: const Icon(Icons.person), label: ArabicStrings.profile),
         ],
       ),
     );

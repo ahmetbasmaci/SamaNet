@@ -3,6 +3,7 @@ import '../../data/models/user.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/local_storage_service.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/arabic_strings.dart';
 import 'bloc_provider.dart';
 
 /// Authentication events
@@ -129,10 +130,10 @@ class AuthBloc extends BaseBloc {
           emit(AuthError(authData.message));
         }
       } else {
-        emit(AuthError(response.error ?? 'Login failed'));
+        emit(AuthError(response.error ?? ArabicStrings.loginFailed));
       }
     } catch (e) {
-      emit(AuthError('Login failed: ${e.toString()}'));
+      emit(AuthError('${ArabicStrings.loginFailed}: ${e.toString()}'));
     }
   }
 
@@ -166,10 +167,10 @@ class AuthBloc extends BaseBloc {
           emit(AuthError(authData.message));
         }
       } else {
-        emit(AuthError(response.error ?? 'Registration failed'));
+        emit(AuthError(response.error ?? ArabicStrings.registrationFailed));
       }
     } catch (e) {
-      emit(AuthError('Registration failed: ${e.toString()}'));
+      emit(AuthError('${ArabicStrings.registrationFailed}: ${e.toString()}'));
     }
   }
 

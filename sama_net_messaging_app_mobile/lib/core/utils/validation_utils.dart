@@ -1,3 +1,5 @@
+import '../constants/arabic_strings.dart';
+
 /// Utility class for input validation
 class ValidationUtils {
   /// Validate email format
@@ -40,10 +42,10 @@ class ValidationUtils {
   /// Get email validation error message
   static String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Email is required';
+      return ArabicStrings.nameOrPhoneRequired;
     }
     if (!isValidEmail(value)) {
-      return 'Please enter a valid email address';
+      return ArabicStrings.enterValidNameOrPhone;
     }
     return null;
   }
@@ -51,10 +53,10 @@ class ValidationUtils {
   /// Get phone validation error message
   static String? validatePhone(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Phone number is required';
+      return ArabicStrings.nameOrPhoneRequired;
     }
     if (!isValidPhone(value)) {
-      return 'Please enter a valid phone number';
+      return ArabicStrings.enterValidNameOrPhone;
     }
     return null;
   }
@@ -62,10 +64,10 @@ class ValidationUtils {
   /// Get password validation error message
   static String? validatePassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Password is required';
+      return ArabicStrings.passwordRequired;
     }
     if (!isValidPassword(value)) {
-      return 'Password must be at least 6 characters long';
+      return ArabicStrings.passwordTooShort;
     }
     return null;
   }
@@ -73,7 +75,7 @@ class ValidationUtils {
   /// Get required field validation error message
   static String? validateRequired(String? value, String fieldName) {
     if (value == null || value.trim().isEmpty) {
-      return '$fieldName is required';
+      return ArabicStrings.fieldRequired;
     }
     return null;
   }
@@ -81,10 +83,10 @@ class ValidationUtils {
   /// Validate message length
   static String? validateMessage(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Message cannot be empty';
+      return ArabicStrings.messageCannotBeEmpty;
     }
     if (value.length > 1000) {
-      return 'Message is too long (max 1000 characters)';
+      return ArabicStrings.messageTooLong;
     }
     return null;
   }

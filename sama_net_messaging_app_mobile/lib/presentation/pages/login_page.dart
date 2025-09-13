@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../../core/utils/validation_utils.dart';
+import '../../core/constants/arabic_strings.dart';
 import '../blocs/auth_bloc.dart';
 import '../blocs/bloc_provider.dart';
 
@@ -16,6 +18,16 @@ class _LoginPageState extends State<LoginPage> {
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-fill credentials in debug mode
+    if (kDebugMode) {
+      _identifierController.text = 'ahmet';
+      _passwordController.text = '231';
+    }
+  }
 
   @override
   void dispose() {
@@ -67,14 +79,14 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(height: 16),
 
                       Text(
-                        'Sama Net Messaging',
+                        ArabicStrings.appTitle,
                         style: theme.textTheme.displayLarge?.copyWith(color: theme.colorScheme.primary),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
 
                       Text(
-                        'Connect with your friends and family',
+                        ArabicStrings.appSubtitle,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurface.withOpacity(0.7),
                         ),
@@ -86,20 +98,20 @@ class _LoginPageState extends State<LoginPage> {
                       // Email/Phone Input
                       TextFormField(
                         controller: _identifierController,
-                        decoration: const InputDecoration(
-                          labelText: 'Name or Phone',
-                          prefixIcon: Icon(Icons.person_outline),
+                        decoration: InputDecoration(
+                          labelText: ArabicStrings.nameOrPhone,
+                          prefixIcon: const Icon(Icons.person_outline),
                         ),
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         enabled: !isLoading,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Email or phone is required';
+                            return ArabicStrings.nameOrPhoneRequired;
                           }
                           // Check if it's email or phone format
                           if (!ValidationUtils.isValidName(value) && !ValidationUtils.isValidPhone(value)) {
-                            return 'Please enter a valid name or phone number';
+                            return ArabicStrings.enterValidNameOrPhone;
                           }
                           return null;
                         },
@@ -111,7 +123,7 @@ class _LoginPageState extends State<LoginPage> {
                       TextFormField(
                         controller: _passwordController,
                         decoration: InputDecoration(
-                          labelText: 'Password',
+                          labelText: ArabicStrings.password,
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
                             icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
@@ -136,7 +148,7 @@ class _LoginPageState extends State<LoginPage> {
                         onPressed: isLoading ? null : _handleLogin,
                         child: isLoading
                             ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Login'),
+                            : Text(ArabicStrings.login),
                       ),
 
                       const SizedBox(height: 16),
@@ -149,9 +161,9 @@ class _LoginPageState extends State<LoginPage> {
                                 // TODO: Implement forgot password
                                 ScaffoldMessenger.of(
                                   context,
-                                ).showSnackBar(const SnackBar(content: Text('Forgot password feature coming soon')));
+                                ).showSnackBar(SnackBar(content: Text(ArabicStrings.forgotPasswordComingSoon)));
                               },
-                        child: Text('Forgot Password?', style: TextStyle(color: theme.colorScheme.primary)),
+                        child: Text(ArabicStrings.forgotPassword, style: TextStyle(color: theme.colorScheme.primary)),
                       ),
 
                       const SizedBox(height: 24),
@@ -162,7 +174,7 @@ class _LoginPageState extends State<LoginPage> {
                           const Expanded(child: Divider()),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text('or', style: theme.textTheme.bodySmall),
+                            child: Text(ArabicStrings.or, style: theme.textTheme.bodySmall),
                           ),
                           const Expanded(child: Divider()),
                         ],
@@ -177,7 +189,7 @@ class _LoginPageState extends State<LoginPage> {
                             : () {
                                 Navigator.of(context).pushNamed('/register');
                               },
-                        child: const Text('Create New Account'),
+                        child: Text(ArabicStrings.createNewAccount),
                       ),
                     ],
                   ),

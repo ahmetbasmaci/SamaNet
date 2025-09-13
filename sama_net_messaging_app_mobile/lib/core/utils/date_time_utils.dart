@@ -1,3 +1,5 @@
+import '../constants/arabic_strings.dart';
+
 /// Utility class for date and time formatting
 class DateTimeUtils {
   /// Format timestamp for chat list (shows time if today, date if this week, full date otherwise)
@@ -33,9 +35,9 @@ class DateTimeUtils {
     final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
 
     if (messageDate == today) {
-      return 'Today';
+      return ArabicStrings.today;
     } else if (messageDate == today.subtract(const Duration(days: 1))) {
-      return 'Yesterday';
+      return ArabicStrings.yesterday;
     } else if (messageDate.isAfter(today.subtract(const Duration(days: 7)))) {
       return _getDayName(dateTime.weekday);
     } else if (messageDate.year == today.year) {
@@ -56,7 +58,7 @@ class DateTimeUtils {
     final difference = now.difference(dateTime);
 
     if (difference.inSeconds < 60) {
-      return 'Just now';
+      return ArabicStrings.justNow;
     } else if (difference.inMinutes < 60) {
       return '${difference.inMinutes}m ago';
     } else if (difference.inHours < 24) {
@@ -77,26 +79,11 @@ class DateTimeUtils {
 
   /// Get day name from weekday number
   static String _getDayName(int weekday) {
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    return days[weekday - 1];
+    return ArabicStrings.weekDays[weekday - 1];
   }
 
   /// Get month name from month number
   static String _getMonthName(int month) {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return months[month - 1];
+    return ArabicStrings.months[month - 1];
   }
 }
