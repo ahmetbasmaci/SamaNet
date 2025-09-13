@@ -66,7 +66,7 @@ class _SearchPageState extends State<SearchPage> {
       final userId = await _localStorage.getUserId();
       if (userId != null) {
         // Fetch current user from API
-        final response = await _userService.getCurrentUser();
+        final response = await _userService.getUserById(userId);
         if (response.isSuccess && response.data != null) {
           setState(() {
             _currentUser = response.data;

@@ -87,11 +87,13 @@ class AuthBloc extends BaseBloc {
       final storedUserData = await localStorage.getObject(AppConstants.userDataKey);
 
       if (storedToken != null && storedUserData != null) {
-        // Set token in auth service
-        authService.setAuthToken(storedToken);
-
         // Create user from stored data
         final user = User.fromJson(storedUserData);
+
+        // Set token and user ID in auth service
+        authService.setAuthToken(storedToken);
+        authService.setUserId(user.id.toString());
+
         _currentUser = user;
         _accessToken = storedToken;
 

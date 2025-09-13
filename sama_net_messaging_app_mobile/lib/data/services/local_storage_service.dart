@@ -1,22 +1,88 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 
-/// Simple local storage service using in-memory storage
-/// In a real app, this would use SharedPreferences or similar
+/// Persistent local storage service using file system
 class LocalStorageService {
   static final LocalStorageService _instance = LocalStorageService._internal();
   factory LocalStorageService() => _instance;
   LocalStorageService._internal();
 
-  final Map<String, String> _storage = {};
+  File? _storageFile;
+  Map<String, String> _cache = {};
+  bool _isInitialized = false;
+
+  /// Get app storage directory path
+  Future<String> _getStorageDirectoryPath() async {
+    if (Platform.isAndroid) {
+      return '/data/data/com.example.sama_net_messaging_app_mobile/app_flutter';
+    } else if (Platform.isIOS) {
+      return '${Platform.environment['HOME']}/Documents';
+    } else {
+      // Fallback for other platforms
+      return Directory.current.path;
+    }
+  }
+
+  /// Initialize storage file
+  Future<void> _initStorage() async {
+    if (_isInitialized) return;
+
+    try {
+      // Create storage directory and file
+      final directoryPath = await _getStorageDirectoryPath();
+      final directory = Directory(directoryPath);
+
+      // Create directory if it doesn't exist
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+
+      _storageFile = File('$directoryPath/app_storage.json');
+
+      // Load existing data if file exists
+      if (await _storageFile!.exists()) {
+        final content = await _storageFile!.readAsString();
+        if (content.isNotEmpty) {
+          final data = json.decode(content) as Map<String, dynamic>;
+          _cache = data.cast<String, String>();
+        }
+      }
+      _isInitialized = true;
+    } catch (e) {
+      // Fallback to in-memory storage if file operations fail
+      if (kDebugMode) {
+        print('Storage initialization failed, using in-memory storage: $e');
+      }
+      _isInitialized = true;
+    }
+  }
+
+  /// Save data to file
+  Future<void> _saveToFile() async {
+    if (_storageFile == null) return;
+
+    try {
+      final jsonString = json.encode(_cache);
+      await _storageFile!.writeAsString(jsonString);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to save to file: $e');
+      }
+    }
+  }
 
   /// Save string value
   Future<void> saveString(String key, String value) async {
-    _storage[key] = value;
+    await _initStorage();
+    _cache[key] = value;
+    await _saveToFile();
   }
 
   /// Get string value
   Future<String?> getString(String key) async {
-    return _storage[key];
+    await _initStorage();
+    return _cache[key];
   }
 
   /// Save object as JSON
@@ -63,22 +129,28 @@ class LocalStorageService {
 
   /// Remove value
   Future<void> remove(String key) async {
-    _storage.remove(key);
+    await _initStorage();
+    _cache.remove(key);
+    await _saveToFile();
   }
 
   /// Clear all values
   Future<void> clear() async {
-    _storage.clear();
+    await _initStorage();
+    _cache.clear();
+    await _saveToFile();
   }
 
   /// Check if key exists
   Future<bool> containsKey(String key) async {
-    return _storage.containsKey(key);
+    await _initStorage();
+    return _cache.containsKey(key);
   }
 
   /// Get all keys
   Future<Set<String>> getKeys() async {
-    return _storage.keys.toSet();
+    await _initStorage();
+    return _cache.keys.toSet();
   }
 
   /// Get current user ID
