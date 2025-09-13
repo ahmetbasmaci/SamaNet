@@ -80,4 +80,14 @@ class LocalStorageService {
   Future<Set<String>> getKeys() async {
     return _storage.keys.toSet();
   }
+
+  /// Get current user ID
+  Future<int?> getUserId() async {
+    return await getInt('user_id');
+  }
+
+  /// Save current user ID
+  Future<void> saveUserId(int userId) async {
+    await saveInt('user_id', userId);
+  }
 }

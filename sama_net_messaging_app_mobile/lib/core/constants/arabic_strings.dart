@@ -54,6 +54,23 @@ class ArabicStrings {
   static const String loginFailed = 'فشل تسجيل الدخول';
   static const String registrationFailed = 'فشل التسجيل';
 
+  // Messages and Chat
+  static const String typeMessage = 'اكتب رسالة...';
+  static const String sendMessage = 'إرسال';
+  static const String noMessages = 'لا توجد رسائل';
+  static const String online = 'متصل';
+  static const String offline = 'غير متصل';
+  static const String typing = 'يكتب...';
+  static const String delivered = 'تم التسليم';
+  static const String read = 'تم القراءة';
+  static const String sent = 'تم الإرسال';
+  static const String messageDeleted = 'تم حذف الرسالة';
+  static const String selectImage = 'اختر صورة';
+  static const String selectFile = 'اختر ملف';
+  static const String camera = 'الكاميرا';
+  static const String gallery = 'المعرض';
+  static const String attachment = 'مرفق';
+
   // Date and Time
   static const String today = 'اليوم';
   static const String yesterday = 'أمس';
