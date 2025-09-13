@@ -11,6 +11,7 @@ import 'presentation/blocs/auth_bloc.dart';
 import 'presentation/blocs/bloc_provider.dart';
 import 'presentation/pages/login_page.dart';
 import 'presentation/pages/messages_page.dart';
+import 'presentation/pages/search_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -162,7 +163,7 @@ class MainScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
-              // Implement search
+              Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SearchPage()));
             },
           ),
           IconButton(

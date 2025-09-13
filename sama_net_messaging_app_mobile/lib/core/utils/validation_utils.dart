@@ -29,6 +29,16 @@ class ValidationUtils {
     return digitsOnly.length >= 10 && digitsOnly.length <= 15;
   }
 
+  /// Validate if numeric
+  static bool isNumeric(String str) {
+    if (str.isEmpty) return false;
+
+    // Remove all non-digit characters
+    final digitsOnly = str.replaceAll(RegExp(r'[^\d]'), '');
+
+    return digitsOnly.isNotEmpty;
+  }
+
   /// Validate password strength
   static bool isValidPassword(String password) {
     return password.length >= 3;

@@ -54,6 +54,16 @@ class ArabicStrings {
   static const String loginFailed = 'فشل تسجيل الدخول';
   static const String registrationFailed = 'فشل التسجيل';
 
+  // Search
+  static const String search = 'بحث';
+  static const String searchByPhone = 'البحث برقم الهاتف';
+  static const String enterPhoneNumber = 'أدخل رقم الهاتف';
+  static const String searchUsers = 'البحث عن المستخدمين';
+  static const String noUsersFound = 'لم يتم العثور على مستخدمين';
+  static const String userNotFound = 'المستخدم غير موجود';
+  static const String searchResults = 'نتائج البحث';
+  static const String startChat = 'بدء محادثة';
+
   // Messages and Chat
   static const String typeMessage = 'اكتب رسالة...';
   static const String sendMessage = 'إرسال';

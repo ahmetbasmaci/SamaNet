@@ -53,7 +53,7 @@ class ApiClient {
   Future<ApiResponse<T>> get<T>(
     String endpoint, {
     Map<String, String>? queryParams,
-    T Function(Map<String, dynamic>)? fromJson,
+    T Function(dynamic)? fromJson,
   }) async {
     try {
       final client = _createHttpClient();
@@ -79,7 +79,7 @@ class ApiClient {
     String endpoint, {
     Object? body,
     Map<String, String>? queryParams,
-    T Function(Map<String, dynamic>)? fromJson,
+    T Function(dynamic)? fromJson,
   }) async {
     try {
       final client = _createHttpClient();
@@ -110,7 +110,7 @@ class ApiClient {
     String endpoint, {
     Object? body,
     Map<String, String>? queryParams,
-    T Function(Map<String, dynamic>)? fromJson,
+    T Function(dynamic)? fromJson,
   }) async {
     try {
       final client = _createHttpClient();
@@ -142,7 +142,7 @@ class ApiClient {
     required Map<String, String> fields,
     required String filePath,
     required String fileFieldName,
-    T Function(Map<String, dynamic>)? fromJson,
+    T Function(dynamic)? fromJson,
   }) async {
     try {
       final client = _createHttpClient();
@@ -201,7 +201,7 @@ class ApiClient {
   Future<ApiResponse<T>> delete<T>(
     String endpoint, {
     Map<String, String>? queryParams,
-    T Function(Map<String, dynamic>)? fromJson,
+    T Function(dynamic)? fromJson,
   }) async {
     try {
       final client = _createHttpClient();
@@ -244,9 +244,9 @@ class ApiClient {
   }
 
   /// Handle HTTP response
-  ApiResponse<T> _handleResponse<T>(int statusCode, String responseBody, T Function(Map<String, dynamic>)? fromJson) {
+  ApiResponse<T> _handleResponse<T>(int statusCode, String responseBody, T Function(dynamic)? fromJson) {
     try {
-      final Map<String, dynamic> responseData = json.decode(responseBody);
+      final dynamic responseData = json.decode(responseBody);
 
       if (statusCode >= 200 && statusCode < 300) {
         // Success response
@@ -257,9 +257,13 @@ class ApiClient {
           return ApiResponse.success(responseData as T);
         }
       } else {
-        // Error response
-        final errorMessage =
-            responseData['message'] ?? responseData['error'] ?? 'Request failed with status $statusCode';
+        // Error response - handle both object and string responses
+        String errorMessage;
+        if (responseData is Map<String, dynamic>) {
+          errorMessage = responseData['message'] ?? responseData['error'] ?? 'Request failed with status $statusCode';
+        } else {
+          errorMessage = responseData.toString();
+        }
         return ApiResponse.error(errorMessage);
       }
     } catch (e) {
