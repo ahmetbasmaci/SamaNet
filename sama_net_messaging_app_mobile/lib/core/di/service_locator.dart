@@ -8,6 +8,7 @@ import '../../data/services/chat_service.dart';
 import '../../data/services/message_status_service.dart';
 import '../../presentation/blocs/auth_bloc.dart';
 import '../constants/app_constants.dart';
+import '../services/conversation_update_notifier.dart';
 
 /// Simple service locator for dependency injection without external packages
 class ServiceLocator {
@@ -64,6 +65,9 @@ Future<void> initializeDependencies() async {
   serviceLocator.registerSingleton<LocalStorageService>(LocalStorageService());
 
   serviceLocator.registerSingleton<ApiClient>(ApiClient(baseUrl: ApiConstants.baseUrl));
+
+  // Conversation update notifier
+  serviceLocator.registerSingleton<ConversationUpdateNotifier>(ConversationUpdateNotifier());
 
   // API services
   serviceLocator.registerSingleton<AuthService>(

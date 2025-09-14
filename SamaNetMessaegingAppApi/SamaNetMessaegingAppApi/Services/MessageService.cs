@@ -1,6 +1,7 @@
 using SamaNetMessaegingAppApi.DTOs;
 using SamaNetMessaegingAppApi.Models;
 using SamaNetMessaegingAppApi.Repositories.Interfaces;
+using SamaNetMessaegingAppApi.Repositories;
 using SamaNetMessaegingAppApi.Services.Interfaces;
 
 namespace SamaNetMessaegingAppApi.Services
@@ -14,17 +15,20 @@ namespace SamaNetMessaegingAppApi.Services
         private readonly IAttachmentRepository _attachmentRepository;
         private readonly IUserRepository _userRepository;
         private readonly IFileService _fileService;
+        private readonly IMessageDeletionRepository _messageDeletionRepository;
 
         public MessageService(
             IMessageRepository messageRepository,
             IAttachmentRepository attachmentRepository,
             IUserRepository userRepository,
-            IFileService fileService)
+            IFileService fileService,
+            IMessageDeletionRepository messageDeletionRepository)
         {
             _messageRepository = messageRepository;
             _attachmentRepository = attachmentRepository;
             _userRepository = userRepository;
             _fileService = fileService;
+            _messageDeletionRepository = messageDeletionRepository;
         }
 
         public async Task<MessageResponseDto> SendMessageAsync(int senderId, SendMessageRequestDto request)
@@ -98,7 +102,13 @@ namespace SamaNetMessaegingAppApi.Services
                 request.Page, 
                 request.PageSize);
 
-            return messages.Select(MapToMessageResponseDto);
+            // Get deleted message IDs for current user
+            var deletedMessageIds = await _messageDeletionRepository.GetDeletedMessageIdsForUserAsync(currentUserId);
+            
+            // Filter out messages that are deleted for the current user
+            var filteredMessages = messages.Where(m => !deletedMessageIds.Contains(m.Id));
+
+            return filteredMessages.Select(MapToMessageResponseDto);
         }
 
         public async Task<bool> MarkMessageAsReadAsync(int userId, int messageId)
@@ -160,7 +170,7 @@ namespace SamaNetMessaegingAppApi.Services
             };
         }
 
-        public async Task<bool> DeleteMessageAsync(int userId, int messageId)
+        public async Task<bool> DeleteMessageForMeAsync(int userId, int messageId)
         {
             var message = await _messageRepository.GetByIdAsync(messageId);
             
@@ -168,32 +178,19 @@ namespace SamaNetMessaegingAppApi.Services
             if (message == null)
                 return false;
             
-            // Check if user has permission to delete (only sender can delete their own messages)
-            if (message.SenderId != userId)
+            // Check if user has permission to delete (sender or receiver can delete for themselves)
+            if (message.SenderId != userId && message.ReceiverId != userId)
                 return false;
             
-            // Delete associated attachments first
-            var attachments = message.Attachments?.ToList() ?? new List<Attachment>();
-            foreach (var attachment in attachments)
+            // Create deletion record for this user
+            var messageDeletion = new MessageDeletion
             {
-                try
-                {
-                    // Delete the physical file
-                    await _fileService.DeleteFileAsync(attachment.FilePath);
-                    
-                    // Delete attachment record
-                    await _attachmentRepository.DeleteAsync(attachment.Id);
-                }
-                catch (Exception ex)
-                {
-                    // Log error but continue with message deletion
-                    // In production, you might want to handle this differently
-                    Console.WriteLine($"Error deleting attachment {attachment.Id}: {ex.Message}");
-                }
-            }
+                MessageId = messageId,
+                UserId = userId,
+                DeletedAt = DateTime.UtcNow
+            };
             
-            // Delete the message
-            await _messageRepository.DeleteAsync(messageId);
+            await _messageDeletionRepository.AddAsync(messageDeletion);
             return true;
         }
 
@@ -202,14 +199,21 @@ namespace SamaNetMessaegingAppApi.Services
             // Get all messages where the user is either sender or receiver
             var userMessages = await _messageRepository.GetMessagesForUserAsync(userId);
 
+            // Get deleted message IDs for current user
+            var deletedMessageIds = await _messageDeletionRepository.GetDeletedMessageIdsForUserAsync(userId);
+            
+            // Filter out messages that are deleted for the current user
+            var filteredMessages = userMessages.Where(m => !deletedMessageIds.Contains(m.Id));
+
             // Group messages by conversation partner
-            var conversationGroups = userMessages
+            var conversationGroups = filteredMessages
                 .GroupBy(m => m.SenderId == userId ? m.ReceiverId : m.SenderId)
                 .Select(g => new
                 {
                     OtherUserId = g.Key,
                     Messages = g.OrderByDescending(m => m.SentAt).ToList()
                 })
+                .Where(g => g.Messages.Any()) // Only include conversations with remaining messages
                 .Take(limit)
                 .ToList();
 

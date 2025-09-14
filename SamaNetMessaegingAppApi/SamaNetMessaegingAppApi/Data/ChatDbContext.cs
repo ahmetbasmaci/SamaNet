@@ -15,6 +15,7 @@ namespace SamaNetMessaegingAppApi.Data
         public DbSet<User> Users { get; set; }
         public DbSet<Message> Messages { get; set; }
         public DbSet<Attachment> Attachments { get; set; }
+        public DbSet<MessageDeletion> MessageDeletions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -71,6 +72,33 @@ namespace SamaNetMessaegingAppApi.Data
 
                 // Add index for performance
                 entity.HasIndex(e => e.MessageId).HasDatabaseName("IDX_Attachments_Message");
+            });
+
+            // Configure MessageDeletion entity
+            modelBuilder.Entity<MessageDeletion>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.DeletedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                // Configure relationships
+                entity.HasOne(e => e.Message)
+                    .WithMany()
+                    .HasForeignKey(e => e.MessageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Ensure unique constraint - one deletion record per user per message
+                entity.HasIndex(e => new { e.MessageId, e.UserId })
+                    .IsUnique()
+                    .HasDatabaseName("IDX_MessageDeletions_Unique");
+
+                // Add indexes for performance
+                entity.HasIndex(e => e.MessageId).HasDatabaseName("IDX_MessageDeletions_Message");
+                entity.HasIndex(e => e.UserId).HasDatabaseName("IDX_MessageDeletions_User");
             });
         }
     }

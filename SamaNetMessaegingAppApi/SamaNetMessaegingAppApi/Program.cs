@@ -69,6 +69,7 @@ namespace SamaNetMessaegingAppApi
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IMessageRepository, MessageRepository>();
             services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+            services.AddScoped<IMessageDeletionRepository, MessageDeletionRepository>();
 
             // Register services
             services.AddScoped<IUserService, UserService>();

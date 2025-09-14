@@ -1,25 +1,40 @@
-# Message Deletion Feature Implementation
+# Message Deletion Feature Implementation - "Delete for Me" Style
 
 ## Overview
-Complete implementation of message deletion functionality for the SamaNet messaging app, allowing users to delete their own messages from both frontend and backend.
+Complete implementation of WhatsApp-style "delete for me" functionality for the SamaNet messaging app, allowing users to delete messages from their own view while keeping them visible for other participants.
 
 ## 🔧 Backend Implementation
 
-### 1. API Endpoint
+### 1. New MessageDeletion Entity
+```csharp
+public class MessageDeletion
+{
+    public int Id { get; set; }
+    public int MessageId { get; set; }
+    public int UserId { get; set; }
+    public DateTime DeletedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation properties
+    public virtual Message Message { get; set; } = null!;
+    public virtual User User { get; set; } = null!;
+}
+```
+
+### 2. API Endpoint (Updated Behavior)
 ```http
 DELETE /api/messages/{messageId}
 Headers: X-User-Id: {userId}
 ```
 
 **Response:**
-- `200 OK`: Message deleted successfully
+- `200 OK`: Message deleted for the user (hidden from their view)
 - `400 Bad Request`: Invalid message ID or user ID
-- `404 Not Found`: Message not found or no permission to delete
+- `404 Not Found`: Message not found or user not part of conversation
 - `500 Internal Server Error`: Server error
 
-### 2. MessageService.DeleteMessageAsync()
+### 3. MessageService.DeleteMessageForMeAsync()
 ```csharp
-public async Task<bool> DeleteMessageAsync(int userId, int messageId)
+public async Task<bool> DeleteMessageForMeAsync(int userId, int messageId)
 {
     var message = await _messageRepository.GetByIdAsync(messageId);
     
@@ -27,39 +42,187 @@ public async Task<bool> DeleteMessageAsync(int userId, int messageId)
     if (message == null)
         return false;
     
-    // Check if user has permission (only sender can delete)
-    if (message.SenderId != userId)
+    // Check if user has permission (sender or receiver can delete for themselves)
+    if (message.SenderId != userId && message.ReceiverId != userId)
         return false;
     
-    // Delete associated attachments first
-    var attachments = message.Attachments?.ToList() ?? new List<Attachment>();
-    foreach (var attachment in attachments)
+    // Create deletion record for this user
+    var messageDeletion = new MessageDeletion
     {
-        await _fileService.DeleteFileAsync(attachment.FilePath);
-        await _attachmentRepository.DeleteAsync(attachment.Id);
-    }
+        MessageId = messageId,
+        UserId = userId,
+        DeletedAt = DateTime.UtcNow
+    };
     
-    // Delete the message
-    await _messageRepository.DeleteAsync(messageId);
+    await _messageDeletionRepository.AddAsync(messageDeletion);
     return true;
 }
 ```
 
-### 3. Security Features
-- **Permission Check**: Only message sender can delete their own messages
-- **Cascade Deletion**: Automatically deletes associated file attachments
-- **Error Handling**: Graceful handling of missing files or database errors
+### 4. Message Filtering
+- **GetConversationAsync**: Automatically filters out messages deleted by the current user
+- **GetRecentConversationsAsync**: Shows conversations without deleted messages in recent list
+- **Database Structure**: Uses MessageDeletion table to track user-specific deletions
+
+### 5. Security Features
+- **Permission Check**: Both sender and receiver can delete messages for themselves
+- **Data Preservation**: Original messages remain in database for other participants
+- **User Isolation**: Each user's deletions only affect their own view
 
 ## 📱 Frontend Implementation
 
-### 1. MessageStatusService.deleteMessage()
+### 1. Updated User Interface
 ```dart
-/// Delete a message
+/// Delete dialog with clear "delete for me" messaging
+showDialog(
+  context: context,
+  builder: (context) => AlertDialog(
+    title: Text('Delete Message'),
+    content: Text('Are you sure you want to delete this message for you? This will only remove it from your view.'),
+    actions: [
+      TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
+      TextButton(
+        onPressed: () async {
+          Navigator.pop(context);
+          await _performMessageDeletion(message);
+        },
+        child: Text('Delete for me'),
+      ),
+    ],
+  ),
+);
+```
+
+### 2. Real-time UI Updates
+```dart
+/// Success feedback with clear messaging
+ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+    content: Text('Message deleted for you'),
+    backgroundColor: Colors.green,
+    duration: Duration(seconds: 2),
+  ),
+);
+```
+
+### 3. Error Handling
+```dart
+/// Updated error message for better clarity
+ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+    content: Text('Failed to delete message. You can only delete messages from your conversations.'),
+    backgroundColor: Colors.red,
+    duration: Duration(seconds: 3),
+  ),
+);
+```
+
+## 🎯 User Experience Features
+
+### 1. WhatsApp-Style Behavior
+- **Personal Deletion**: Messages disappear only from the deleting user's view
+- **Other Users Unaffected**: Other participants continue to see the message normally
+- **No Notifications**: Other users are not notified when someone deletes a message for themselves
+
+### 2. Permission Model
+- **Sender Can Delete**: Message sender can delete their own messages for themselves
+- **Receiver Can Delete**: Message recipient can also delete messages for themselves
+- **Bilateral Permission**: Both parties in a conversation can manage their own view
+
+### 3. UI Clarity
+- **Clear Messaging**: Dialog explicitly states "delete for you" and "remove from your view"
+- **Appropriate Button Text**: "Delete for me" instead of generic "Delete"
+- **Success Feedback**: "Message deleted for you" confirms the action scope
+
+## 🔒 Security & Privacy
+
+### Database Design
+```sql
+CREATE TABLE MessageDeletions (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    MessageId INTEGER NOT NULL,
+    UserId INTEGER NOT NULL,
+    DeletedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    FOREIGN KEY (MessageId) REFERENCES Messages (Id) ON DELETE CASCADE,
+    FOREIGN KEY (UserId) REFERENCES Users (Id) ON DELETE CASCADE,
+    UNIQUE(MessageId, UserId)  -- One deletion record per user per message
+);
+```
+
+### Security Features
+- **User Authentication**: Requires valid X-User-Id header
+- **Conversation Participation**: Only participants can delete messages for themselves
+- **Data Integrity**: Original messages preserved in database
+- **Unique Constraints**: Prevents duplicate deletion records
+
+## 📊 Usage Flow
+
+### Complete "Delete for Me" Process
+```
+1. User long-presses a message (their own or received)
+2. Context menu appears with "Delete" option
+3. User taps "Delete"
+4. Dialog appears: "Delete message for you? This will only remove it from your view"
+5. User confirms with "Delete for me" button
+6. API creates MessageDeletion record linking user to message
+7. Message disappears from user's conversation view
+8. Other participants continue to see the message normally
+9. User sees "Message deleted for you" confirmation
+```
+
+### Different User Views
+```
+Before Deletion (Both users see message):
+User A: "Hello, how are you?"
+User B: "Hello, how are you?"
+
+After User A deletes for themselves:
+User A: [Message not visible]
+User B: "Hello, how are you?"  [Still visible]
+
+After User B also deletes for themselves:
+User A: [Message not visible]
+User B: [Message not visible]
+[Original message still exists in database]
+```
+
+## 🛠️ Implementation Details
+
+### Backend Repository Pattern
+```csharp
+public interface IMessageDeletionRepository
+{
+    Task<MessageDeletion> AddAsync(MessageDeletion messageDeletion);
+    Task<bool> IsMessageDeletedForUserAsync(int messageId, int userId);
+    Task<List<int>> GetDeletedMessageIdsForUserAsync(int userId);
+    Task<bool> RemoveAsync(int messageId, int userId);  // For potential "restore" feature
+}
+```
+
+### Message Filtering Logic
+```csharp
+public async Task<IEnumerable<MessageResponseDto>> GetConversationAsync(int currentUserId, ConversationRequestDto request)
+{
+    var messages = await _messageRepository.GetConversationAsync(currentUserId, request.UserId, request.Page, request.PageSize);
+    
+    // Get deleted message IDs for current user
+    var deletedMessageIds = await _messageDeletionRepository.GetDeletedMessageIdsForUserAsync(currentUserId);
+    
+    // Filter out messages deleted by current user
+    var filteredMessages = messages.Where(m => !deletedMessageIds.Contains(m.Id));
+    
+    return filteredMessages.Select(MapToMessageResponseDto);
+}
+```
+
+### Frontend API Integration
+```dart
+/// No changes needed - existing delete method works with new backend behavior
 Future<bool> deleteMessage(int messageId) async {
   try {
     final response = await _messageService.deleteMessage(messageId);
     if (response.isSuccess) {
-      // Clear any cached status for this message
+      // Clear cached status for this message
       await _localStorage.remove('message_${messageId}_delivered');
       await _localStorage.remove('message_${messageId}_read');
       return true;
@@ -72,193 +235,45 @@ Future<bool> deleteMessage(int messageId) async {
 }
 ```
 
-### 2. UI Implementation in MessagesPage
-```dart
-/// Delete a message with confirmation dialog
-void _deleteMessage(Message message) {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text('Delete Message'),
-      content: Text('Are you sure you want to delete this message?'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
-        TextButton(
-          onPressed: () async {
-            Navigator.pop(context);
-            await _performMessageDeletion(message);
-          },
-          child: Text('Delete'),
-        ),
-      ],
-    ),
-  );
-}
-```
-
-### 3. Real-time UI Updates
-```dart
-/// Perform the actual message deletion with UI feedback
-Future<void> _performMessageDeletion(Message message) async {
-  final success = await _messageStatusService.deleteMessage(message.id);
-
-  if (success) {
-    // Remove message from local list
-    setState(() {
-      _messages = _messageStatusService.removeMessageFromList(_messages, message.id);
-    });
-
-    // Show success feedback
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Message deleted successfully')),
-    );
-  } else {
-    // Show error feedback
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to delete message')),
-    );
-  }
-}
-```
-
-## 🎯 User Experience Features
-
-### 1. Context Menu Access
-- **Long Press**: User long-presses their own message
-- **Context Menu**: Shows options including "Delete"
-- **Permission Check**: Delete option only shown for user's own messages
-
-### 2. Confirmation Dialog
-- **Safety Check**: Prevents accidental deletions
-- **Clear Actions**: Cancel or Delete options
-- **User-Friendly**: Clear messaging about what will happen
-
-### 3. Real-time Feedback
-- **Success Messages**: Green snackbar for successful deletion
-- **Error Messages**: Red snackbar for failed deletions
-- **Immediate UI Update**: Message disappears instantly on success
-
-### 4. Error Handling
-- **Network Errors**: Graceful handling of connection issues
-- **Permission Errors**: Clear message about ownership requirements
-- **Server Errors**: User-friendly error messages
-
-## 🔒 Security & Permissions
-
-### Backend Security
-- **User Authentication**: Requires valid X-User-Id header
-- **Ownership Validation**: Only message sender can delete
-- **Data Integrity**: Cascade deletion of related data
-
-### Frontend Security
-- **UI Restrictions**: Delete option only shown for own messages
-- **API Validation**: Server performs final permission check
-- **Error Handling**: Graceful handling of permission denials
-
-## 📊 Usage Flow
-
-### Complete Deletion Process
-```
-1. User long-presses their message
-2. Context menu appears with Delete option
-3. User taps Delete
-4. Confirmation dialog appears
-5. User confirms deletion
-6. API call sent to backend
-7. Backend validates permission
-8. Message and attachments deleted
-9. Success response sent
-10. Frontend updates UI
-11. User sees success message
-```
-
-### Error Scenarios
-```
-Permission Denied:
-- User tries to delete another user's message
-- Backend returns 404 Not Found
-- Frontend shows "You can only delete your own messages"
-
-Network Error:
-- API call fails due to network issues
-- Frontend shows "Error deleting message: [error details]"
-- Message remains in UI until retry succeeds
-
-Server Error:
-- Database or file system error
-- Backend returns 500 Internal Server Error
-- Frontend shows generic error message
-```
-
-## 🛠️ Implementation Details
-
-### API Client Setup
-The `MessageService.deleteMessage()` method uses the existing API client:
-```dart
-Future<ApiResponse<void>> deleteMessage(int messageId) async {
-  try {
-    final response = await _apiClient.delete<void>('${ApiConstants.deleteMessage}/$messageId');
-    return response;
-  } catch (e) {
-    return ApiResponse.error('Failed to delete message: ${e.toString()}');
-  }
-}
-```
-
-### Cache Management
-```dart
-// Clear cached status data for deleted message
-await _localStorage.remove('message_${messageId}_delivered');
-await _localStorage.remove('message_${messageId}_read');
-```
-
-### List Management
-```dart
-/// Remove a message from a list (for UI updates after deletion)
-List<Message> removeMessageFromList(List<Message> messages, int messageId) {
-  return messages.where((message) => message.id != messageId).toList();
-}
-```
-
 ## 🔍 Testing Scenarios
 
 ### Positive Test Cases
-1. **Own Message Deletion**: User deletes their own text message
-2. **Message with Attachments**: User deletes message with file attachments
-3. **Multiple Messages**: User deletes several messages in sequence
-4. **Offline/Online**: Deletion works when connection is restored
+1. **Sender Deletes Own Message**: Message disappears from sender's view only
+2. **Receiver Deletes Received Message**: Message disappears from receiver's view only  
+3. **Both Users Delete Same Message**: Message disappears from both views but remains in database
+4. **Multiple Messages**: Users can delete different messages independently
+5. **Conversation History**: Deletions don't affect message timestamps or order for other users
 
 ### Negative Test Cases
-1. **Other's Message**: User tries to delete another user's message
-2. **Invalid Message ID**: API called with non-existent message ID
-3. **Network Failure**: Deletion attempted during network outage
-4. **Server Error**: Backend database/file system errors
+1. **Non-Participant Deletion**: User not part of conversation cannot delete messages
+2. **Invalid Message ID**: API handles non-existent message IDs gracefully
+3. **Duplicate Deletions**: Multiple deletion attempts for same message are handled correctly
+4. **Database Constraints**: Unique constraint prevents duplicate deletion records
 
 ### UI Test Cases
-1. **Context Menu**: Long-press shows appropriate options
-2. **Confirmation Dialog**: Dialog appears and works correctly
-3. **Success Feedback**: Green snackbar appears on success
-4. **Error Feedback**: Red snackbar appears on failure
-5. **Immediate Update**: Message disappears from list instantly
+1. **Clear Dialog Text**: Dialog explicitly mentions "delete for you" and scope
+2. **Appropriate Button Labels**: "Delete for me" instead of generic "Delete"
+3. **Success Messaging**: Clear feedback about personal scope of deletion
+4. **Error Handling**: Appropriate error messages for permission issues
 
-## 🚀 Deployment Notes
+## 🚀 Benefits Over Previous Implementation
 
-### Backend Requirements
-- Update IMessageService interface
-- Deploy MessageService.DeleteMessageAsync()
-- Add DELETE endpoint to MessagesController
-- Update API documentation
+### User Experience
+- **WhatsApp Familiarity**: Users expect this behavior from modern messaging apps
+- **Privacy Control**: Users can clean up their own message history
+- **No Anxiety**: Deleting doesn't affect other participants, reducing hesitation
+- **Flexibility**: Both sender and receiver can manage their own view
 
-### Frontend Requirements
-- Update MessageStatusService with delete functionality
-- Ensure MessagesPage handles deletion properly
-- Test context menu and confirmation dialogs
-- Verify error handling and user feedback
+### Technical Advantages
+- **Data Preservation**: Complete message history maintained for analytics/legal purposes
+- **Scalable**: MessageDeletion table only grows with actual deletions
+- **Reversible**: Could implement "restore deleted messages" feature in future
+- **Performance**: Filtering deleted messages is efficient with proper indexing
 
-### Database Considerations
-- Ensure cascade deletion is properly configured
-- Consider soft deletion vs hard deletion based on requirements
-- Add logging for deletion operations
-- Consider message retention policies
+### Security & Compliance
+- **Audit Trail**: Original messages preserved for compliance requirements
+- **User Privacy**: Each user controls only their own message visibility
+- **Data Retention**: Supports different retention policies per user
+- **Legal Protection**: Complete conversation history available if needed
 
-This implementation provides a complete, secure, and user-friendly message deletion feature with proper error handling and real-time UI updates!
+This implementation provides the familiar "delete for me" experience users expect from modern messaging applications while maintaining data integrity and providing a superior user experience!

@@ -5,8 +5,9 @@ import '../../data/models/conversation.dart';
 /// Individual conversation tile widget
 class ConversationTile extends StatelessWidget {
   final Conversation conversation;
+  final VoidCallback? onConversationUpdated;
 
-  const ConversationTile({super.key, required this.conversation});
+  const ConversationTile({super.key, required this.conversation, this.onConversationUpdated});
 
   @override
   Widget build(BuildContext context) {
@@ -84,9 +85,12 @@ class ConversationTile extends StatelessWidget {
             ],
           ],
         ),
-        onTap: () {
-          // Navigate to individual conversation
-          Navigator.push(context, MaterialPageRoute(builder: (context) => MessagesPage(chatUser: user)));
+        onTap: () async {
+          // Navigate to individual conversation and wait for result
+          await Navigator.push(context, MaterialPageRoute(builder: (context) => MessagesPage(chatUser: user)));
+
+          // When user returns from MessagesPage, refresh the conversations
+          onConversationUpdated?.call();
         },
       ),
     );

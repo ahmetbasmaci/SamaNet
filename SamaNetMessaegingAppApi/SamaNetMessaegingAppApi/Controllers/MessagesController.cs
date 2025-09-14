@@ -281,7 +281,7 @@ namespace SamaNetMessaegingAppApi.Controllers
 
             try
             {
-                var success = await _messageService.DeleteMessageAsync(userId, messageId);
+                var success = await _messageService.DeleteMessageForMeAsync(userId, messageId);
 
                 if (!success)
                 {

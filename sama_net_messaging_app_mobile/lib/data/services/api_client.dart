@@ -246,7 +246,7 @@ class ApiClient {
   /// Handle HTTP response
   ApiResponse<T> _handleResponse<T>(int statusCode, String responseBody, T Function(dynamic)? fromJson) {
     try {
-      final dynamic responseData = json.decode(responseBody);
+      final dynamic responseData = json.decode(responseBody.isEmpty ? '{}' : responseBody);
 
       if (statusCode >= 200 && statusCode < 300) {
         // Success response

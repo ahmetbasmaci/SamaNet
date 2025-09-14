@@ -9,6 +9,7 @@ import '../../data/services/local_storage_service.dart';
 import '../../data/services/message_status_service.dart';
 import '../widgets/message_bubble.dart';
 import '../../core/di/service_locator.dart';
+import '../../core/services/conversation_update_notifier.dart';
 
 /// Messages page for chatting with a specific user
 class MessagesPage extends StatefulWidget {
@@ -26,6 +27,7 @@ class _MessagesPageState extends State<MessagesPage> {
   late LocalStorageService _localStorage;
   late MessageService _messageService;
   late MessageStatusService _messageStatusService;
+  late ConversationUpdateNotifier _updateNotifier;
   List<Message> _messages = [];
   bool _isLoading = true;
   bool _isSending = false;
@@ -43,12 +45,15 @@ class _MessagesPageState extends State<MessagesPage> {
     _localStorage = serviceLocator.get<LocalStorageService>();
     _messageService = serviceLocator.get<MessageService>();
     _messageStatusService = serviceLocator.get<MessageStatusService>();
+    _updateNotifier = serviceLocator.get<ConversationUpdateNotifier>();
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    // Notify conversations to update when leaving this page
+    _updateNotifier.notifyConversationUpdate();
     super.dispose();
   }
 
@@ -120,6 +125,9 @@ class _MessagesPageState extends State<MessagesPage> {
             _messages = _messageStatusService.updateMessageStatus(_messages, messageId, MessageStatus.read);
           }
         });
+
+        // Notify that conversations need to be updated (unread count changed)
+        _updateNotifier.notifyConversationUpdate();
       }
     } catch (e) {
       print('Error marking messages as read: $e');
@@ -173,6 +181,9 @@ class _MessagesPageState extends State<MessagesPage> {
             _messages[index] = newMessage.copyWith(deliveredAt: DateTime.now());
           }
         });
+
+        // Notify that conversations need to be updated (new message sent)
+        _updateNotifier.notifyConversationUpdate();
       }
     } catch (e) {
       // Handle error - maybe show a retry option
@@ -382,7 +393,7 @@ class _MessagesPageState extends State<MessagesPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Delete Message'),
-        content: Text('Are you sure you want to delete this message?'),
+        content: Text('Are you sure you want to delete this message for you? This will only remove it from your view.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
           TextButton(
@@ -390,7 +401,7 @@ class _MessagesPageState extends State<MessagesPage> {
               Navigator.pop(context);
               await _performMessageDeletion(message);
             },
-            child: Text('Delete'),
+            child: Text('Delete for me'),
           ),
         ],
       ),
@@ -413,7 +424,7 @@ class _MessagesPageState extends State<MessagesPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Message deleted successfully'),
+              content: Text('Message deleted for you'),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 2),
             ),
@@ -424,7 +435,7 @@ class _MessagesPageState extends State<MessagesPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to delete message. You can only delete your own messages.'),
+              content: Text('Failed to delete message. You can only delete messages from your conversations.'),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 3),
             ),
