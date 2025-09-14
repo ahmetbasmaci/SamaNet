@@ -183,7 +183,7 @@ class MessageBubble extends StatelessWidget {
           children: [
             const Icon(Icons.play_circle_filled, size: 40),
             const SizedBox(height: 8),
-            Text('Video (${_formatFileSize(attachment.fileSize)})', style: const TextStyle(fontSize: 12)),
+            Text('فيديو (${_formatFileSize(attachment.fileSize)})', style: const TextStyle(fontSize: 12)),
           ],
         ),
       ),
@@ -199,7 +199,7 @@ class MessageBubble extends StatelessWidget {
         children: [
           const Icon(Icons.audiotrack),
           const SizedBox(width: 8),
-          Text('Audio (${_formatFileSize(attachment.fileSize)})', style: const TextStyle(fontSize: 12)),
+          Text('صوت (${_formatFileSize(attachment.fileSize)})', style: const TextStyle(fontSize: 12)),
         ],
       ),
     );
@@ -233,9 +233,9 @@ class MessageBubble extends StatelessWidget {
   }
 
   String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '${bytes}B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
+    if (bytes < 1024) return '${bytes} بايت';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} كيلوبايت';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} ميجابايت';
   }
 }
 

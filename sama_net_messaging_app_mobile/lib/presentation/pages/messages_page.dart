@@ -322,7 +322,7 @@ class _MessagesPageState extends State<MessagesPage> {
           if (message.senderId == _currentUser?.id) ...[
             ListTile(
               leading: const Icon(Icons.info),
-              title: Text('Message Info'),
+              title: Text('معلومات الرسالة'),
               onTap: () {
                 Navigator.pop(context);
                 _showMessageInfo(message);
@@ -331,7 +331,7 @@ class _MessagesPageState extends State<MessagesPage> {
           ],
           ListTile(
             leading: const Icon(Icons.copy),
-            title: Text('Copy'),
+            title: Text('نسخ'),
             onTap: () {
               Navigator.pop(context);
               // Copy message content to clipboard
@@ -340,7 +340,7 @@ class _MessagesPageState extends State<MessagesPage> {
           if (message.senderId == _currentUser?.id) ...[
             ListTile(
               leading: const Icon(Icons.delete),
-              title: Text('Delete'),
+              title: Text('حذف'),
               onTap: () {
                 Navigator.pop(context);
                 _deleteMessage(message);
@@ -357,19 +357,19 @@ class _MessagesPageState extends State<MessagesPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Message Info'),
+        title: Text('معلومات الرسالة'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildInfoRow('Status', message.status.value),
-            _buildInfoRow('Sent', DateTimeUtils.formatMessageTime(message.sentAt)),
+            _buildInfoRow('الحالة', message.status.value),
+            _buildInfoRow('تم الإرسال', DateTimeUtils.formatMessageTime(message.sentAt)),
             if (message.deliveredAt != null)
-              _buildInfoRow('Delivered', DateTimeUtils.formatMessageTime(message.deliveredAt!)),
-            if (message.readAt != null) _buildInfoRow('Read', DateTimeUtils.formatMessageTime(message.readAt!)),
+              _buildInfoRow('تم التسليم', DateTimeUtils.formatMessageTime(message.deliveredAt!)),
+            if (message.readAt != null) _buildInfoRow('تم القراءة', DateTimeUtils.formatMessageTime(message.readAt!)),
           ],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('Close'))],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('إغلاق'))],
       ),
     );
   }
@@ -392,16 +392,16 @@ class _MessagesPageState extends State<MessagesPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete Message'),
-        content: Text('Are you sure you want to delete this message for you? This will only remove it from your view.'),
+        title: Text('حذف الرسالة'),
+        content: Text('هل أنت متأكد من أنك تريد حذف هذه الرسالة لنفسك؟ سيؤدي هذا إلى إزالتها من عرضك فقط.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('إلغاء')),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
               await _performMessageDeletion(message);
             },
-            child: Text('Delete for me'),
+            child: Text('حذف لي'),
           ),
         ],
       ),
@@ -424,7 +424,7 @@ class _MessagesPageState extends State<MessagesPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Message deleted for you'),
+              content: Text('تم حذف الرسالة لك'),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 2),
             ),
@@ -435,7 +435,7 @@ class _MessagesPageState extends State<MessagesPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to delete message. You can only delete messages from your conversations.'),
+              content: Text('فشل في حذف الرسالة. يمكنك حذف الرسائل من محادثاتك فقط.'),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 3),
             ),
@@ -447,7 +447,7 @@ class _MessagesPageState extends State<MessagesPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error deleting message: ${e.toString()}'),
+            content: Text('خطأ في حذف الرسالة: ${e.toString()}'),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 3),
           ),
