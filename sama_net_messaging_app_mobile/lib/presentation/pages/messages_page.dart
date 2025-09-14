@@ -423,11 +423,7 @@ class _MessagesPageState extends State<MessagesPage> {
         // Show success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('تم حذف الرسالة لك'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
+            SnackBar(content: Text('تم حذف الرسالة لك'), backgroundColor: Colors.green, duration: Duration(seconds: 2)),
           );
         }
       } else {

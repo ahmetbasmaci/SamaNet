@@ -233,7 +233,7 @@ class MessageBubble extends StatelessWidget {
   }
 
   String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '${bytes} بايت';
+    if (bytes < 1024) return '$bytes بايت';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} كيلوبايت';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} ميجابايت';
   }
