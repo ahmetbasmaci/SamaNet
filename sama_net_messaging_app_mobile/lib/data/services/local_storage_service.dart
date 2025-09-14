@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import '../models/user.dart';
 
 /// Persistent local storage service using file system
 class LocalStorageService {
@@ -161,5 +162,38 @@ class LocalStorageService {
   /// Save current user ID
   Future<void> saveUserId(int userId) async {
     await saveInt('user_id', userId);
+  }
+
+  /// Save current user model to cache
+  Future<void> saveCurrentUser(User user) async {
+    await saveObject('current_user', user.toJson());
+    await saveUserId(user.id); // Keep user ID for backward compatibility
+  }
+
+  /// Get current user model from cache
+  Future<User?> getCurrentUser() async {
+    final userData = await getObject('current_user');
+    if (userData == null) return null;
+
+    try {
+      return User.fromJson(userData);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error parsing cached user data: $e');
+      }
+      return null;
+    }
+  }
+
+  /// Remove current user from cache (logout)
+  Future<void> clearCurrentUser() async {
+    await remove('current_user');
+    await remove('user_id');
+  }
+
+  /// Check if user is logged in (has cached user data)
+  Future<bool> isUserLoggedIn() async {
+    final user = await getCurrentUser();
+    return user != null;
   }
 }

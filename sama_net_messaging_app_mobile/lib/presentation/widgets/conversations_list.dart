@@ -4,6 +4,7 @@ import '../../data/services/message_service.dart';
 import 'conversation_tile.dart';
 import '../../data/services/local_storage_service.dart';
 import '../../data/models/conversation.dart';
+import '../../data/models/user.dart';
 
 /// Widget to display list of conversations
 class ConversationsList extends StatefulWidget {
@@ -18,7 +19,7 @@ class _ConversationsListState extends State<ConversationsList> {
   List<Conversation> _conversations = [];
   late LocalStorageService _localStorage;
   late MessageService _messageService;
-  int? _currentUserId;
+  User? _currentUser;
 
   @override
   void initState() {
@@ -34,16 +35,13 @@ class _ConversationsListState extends State<ConversationsList> {
 
   Future<void> _loadCurrentUser() async {
     try {
-      final userId = await _localStorage.getUserId();
-      if (userId != null) {
+      // Load cached user data instead of just user ID
+      final cachedUser = await _localStorage.getCurrentUser();
+      if (cachedUser != null) {
         setState(() {
-          _currentUserId = userId;
+          _currentUser = cachedUser;
         });
         await _loadConversations();
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
       }
     } catch (e) {
       print('Error loading current user: $e');
@@ -54,7 +52,7 @@ class _ConversationsListState extends State<ConversationsList> {
   }
 
   Future<void> _loadConversations() async {
-    if (_currentUserId == null) return;
+    if (_currentUser == null) return;
 
     setState(() {
       _isLoading = true;

@@ -65,7 +65,9 @@ Future<void> initializeDependencies() async {
   serviceLocator.registerSingleton<ApiClient>(ApiClient(baseUrl: ApiConstants.baseUrl));
 
   // API services
-  serviceLocator.registerSingleton<AuthService>(AuthService(serviceLocator.get<ApiClient>()));
+  serviceLocator.registerSingleton<AuthService>(
+    AuthService(serviceLocator.get<ApiClient>(), serviceLocator.get<LocalStorageService>()),
+  );
 
   serviceLocator.registerSingleton<UserService>(UserService(serviceLocator.get<ApiClient>()));
 

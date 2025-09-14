@@ -57,7 +57,7 @@ class MessageService {
     try {
       final response = await _apiClient.get<List<Message>>(
         ApiConstants.getConversation,
-        queryParams: {'otherUserId': otherUserId.toString(), 'page': page.toString(), 'pageSize': pageSize.toString()},
+        queryParams: {'userId': otherUserId.toString(), 'page': page.toString(), 'pageSize': pageSize.toString()},
         fromJson: (json) {
           final messagesData = json as List<dynamic>? ?? [];
           return messagesData.map((messageJson) => Message.fromJson(messageJson as Map<String, dynamic>)).toList();

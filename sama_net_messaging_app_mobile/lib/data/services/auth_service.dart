@@ -2,12 +2,14 @@ import '../models/auth.dart';
 import '../models/user.dart';
 import '../../core/constants/app_constants.dart';
 import 'api_client.dart';
+import 'local_storage_service.dart';
 
 /// Authentication service for handling login, logout, and user authentication
 class AuthService {
   final ApiClient _apiClient;
+  final LocalStorageService _localStorage;
 
-  AuthService(this._apiClient);
+  AuthService(this._apiClient, this._localStorage);
 
   /// Login with username/phone and password
   Future<ApiResponse<AuthResponse>> login(LoginRequest request) async {
@@ -22,6 +24,9 @@ class AuthService {
       if (response.isSuccess && response.data != null) {
         _apiClient.setAuthToken(response.data!.accessToken);
         _apiClient.setUserId(response.data!.user!.id.toString());
+
+        // Cache the current user for offline access
+        await _localStorage.saveCurrentUser(response.data!.user!);
       }
 
       return response;
@@ -43,6 +48,9 @@ class AuthService {
       if (response.isSuccess && response.data != null) {
         _apiClient.setAuthToken(response.data!.accessToken);
         _apiClient.setUserId(response.data!.user!.id.toString());
+
+        // Cache the current user for offline access
+        await _localStorage.saveCurrentUser(response.data!.user!);
       }
 
       return response;
@@ -105,5 +113,7 @@ class AuthService {
   void logout() {
     _apiClient.setAuthToken(null);
     _apiClient.setUserId(null);
+    // Clear cached user data
+    _localStorage.clearCurrentUser();
   }
 }

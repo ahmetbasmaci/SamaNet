@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sama_net_messaging_app_mobile/presentation/pages/messages_page.dart';
 import '../../data/models/conversation.dart';
 
 /// Individual conversation tile widget
@@ -85,7 +86,7 @@ class ConversationTile extends StatelessWidget {
         ),
         onTap: () {
           // Navigate to individual conversation
-          // Navigator.push(context, MaterialPageRoute(builder: (context) => ChatPage(user: user)));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => MessagesPage(chatUser: user)));
         },
       ),
     );

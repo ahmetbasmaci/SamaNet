@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sama_net_messaging_app_mobile/data/services/message_service.dart';
 import '../../core/constants/arabic_strings.dart';
 import '../../core/utils/date_time_utils.dart';
 import '../../data/models/message.dart';
@@ -21,7 +22,7 @@ class _MessagesPageState extends State<MessagesPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late LocalStorageService _localStorage;
-
+  late MessageService _messageService;
   List<Message> _messages = [];
   bool _isLoading = true;
   bool _isSending = false;
@@ -37,6 +38,7 @@ class _MessagesPageState extends State<MessagesPage> {
 
   void _initializeServices() {
     _localStorage = serviceLocator.get<LocalStorageService>();
+    _messageService = serviceLocator.get<MessageService>();
   }
 
   @override
@@ -47,12 +49,18 @@ class _MessagesPageState extends State<MessagesPage> {
   }
 
   Future<void> _loadCurrentUser() async {
-    final userId = await _localStorage.getUserId();
-    if (userId != null) {
-      // In a real app, you'd fetch the current user data
-      // For now, create a mock current user
+    try {
+      // Load cached user data instead of just user ID
+      final cachedUser = await _localStorage.getCurrentUser();
+      if (cachedUser != null) {
+        setState(() {
+          _currentUser = cachedUser;
+        });
+      }
+    } catch (e) {
+      print('Error loading current user: $e');
       setState(() {
-        _currentUser = User(id: userId, username: 'currentUser', phoneNumber: '1234567890', createdAt: DateTime.now());
+        _isLoading = false;
       });
     }
   }
@@ -61,74 +69,17 @@ class _MessagesPageState extends State<MessagesPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Mock messages for demo - in real app, load from API
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      if (kDebugMode) {
-        setState(() {
-          _messages = _generateMockMessages();
-          _isLoading = false;
-        });
-      } else {
-        // Real implementation would use:
-        // final response = await _messageService.getMessages(widget.chatUser.id);
-        setState(() {
-          _messages = [];
-          _isLoading = false;
-        });
-      }
+      // Real implementation would use:
+      final response = await _messageService.getConversation(otherUserId: widget.chatUser.id);
+      setState(() {
+        _messages = response.data ?? [];
+        _isLoading = false;
+      });
 
       _scrollToBottom();
     } catch (e) {
       setState(() => _isLoading = false);
     }
-  }
-
-  List<Message> _generateMockMessages() {
-    final now = DateTime.now();
-    return [
-      Message(
-        id: 1,
-        senderId: widget.chatUser.id,
-        receiverId: _currentUser?.id ?? 1,
-        messageType: 'text',
-        content: 'مرحبا! كيف حالك؟',
-        sentAt: now.subtract(const Duration(hours: 2)),
-        deliveredAt: now.subtract(const Duration(hours: 2, minutes: -1)),
-        readAt: now.subtract(const Duration(hours: 1, minutes: 30)),
-        senderUsername: widget.chatUser.username,
-      ),
-      Message(
-        id: 2,
-        senderId: _currentUser?.id ?? 1,
-        receiverId: widget.chatUser.id,
-        messageType: 'text',
-        content: 'أهلاً وسهلاً! أنا بخير، شكراً لك',
-        sentAt: now.subtract(const Duration(hours: 1, minutes: 45)),
-        deliveredAt: now.subtract(const Duration(hours: 1, minutes: 44)),
-        readAt: now.subtract(const Duration(hours: 1, minutes: 30)),
-      ),
-      Message(
-        id: 3,
-        senderId: widget.chatUser.id,
-        receiverId: _currentUser?.id ?? 1,
-        messageType: 'text',
-        content: 'هل لديك وقت للاجتماع غداً؟',
-        sentAt: now.subtract(const Duration(minutes: 30)),
-        deliveredAt: now.subtract(const Duration(minutes: 29)),
-        readAt: now.subtract(const Duration(minutes: 25)),
-        senderUsername: widget.chatUser.username,
-      ),
-      Message(
-        id: 4,
-        senderId: _currentUser?.id ?? 1,
-        receiverId: widget.chatUser.id,
-        messageType: 'text',
-        content: 'نعم، بالطبع. في أي وقت؟',
-        sentAt: now.subtract(const Duration(minutes: 5)),
-        deliveredAt: now.subtract(const Duration(minutes: 4)),
-      ),
-    ];
   }
 
   void _scrollToBottom() {
@@ -169,10 +120,8 @@ class _MessagesPageState extends State<MessagesPage> {
       _scrollToBottom();
 
       // In real app, send to API:
-      // await _messageService.sendMessage(newMessage);
+      await _messageService.sendMessage(receiverId: widget.chatUser.id, content: newMessage.content ?? "");
 
-      // Simulate delivery status update
-      await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
         setState(() {
           final index = _messages.indexWhere((m) => m.id == newMessage.id);

@@ -50,18 +50,15 @@ class _SearchPageState extends State<SearchPage> {
 
   Future<void> _loadCurrentUser() async {
     try {
-      final userId = await _localStorage.getUserId();
-      if (userId != null) {
-        // Fetch current user from API
-        final response = await _userService.getUserById(userId);
-        if (response.isSuccess && response.data != null) {
-          setState(() {
-            _currentUser = response.data;
-          });
-        }
+      // Load cached user data instead of just user ID
+      final cachedUser = await _localStorage.getCurrentUser();
+      if (cachedUser != null) {
+        setState(() {
+          _currentUser = cachedUser;
+        });
       }
     } catch (e) {
-      // Error loading current user - handled silently
+      print('Error loading current user: $e');
     }
   }
 
