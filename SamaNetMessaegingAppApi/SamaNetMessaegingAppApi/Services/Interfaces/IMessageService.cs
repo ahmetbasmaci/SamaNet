@@ -16,5 +16,6 @@ namespace SamaNetMessaegingAppApi.Services.Interfaces
         Task<int> GetUnreadCountAsync(int userId);
         Task<MessageResponseDto?> GetMessageByIdAsync(int messageId);
         Task<IEnumerable<ConversationResponseDto>> GetRecentConversationsAsync(int userId, int limit = 20);
+        Task<bool> DeleteMessageAsync(int userId, int messageId);
     }
 }

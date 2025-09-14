@@ -6,6 +6,8 @@ import '../../core/utils/date_time_utils.dart';
 import '../../data/models/message.dart';
 import '../../data/models/user.dart';
 import '../../data/services/local_storage_service.dart';
+import '../../data/services/message_status_service.dart';
+import '../widgets/message_bubble.dart';
 import '../../core/di/service_locator.dart';
 
 /// Messages page for chatting with a specific user
@@ -23,6 +25,7 @@ class _MessagesPageState extends State<MessagesPage> {
   final ScrollController _scrollController = ScrollController();
   late LocalStorageService _localStorage;
   late MessageService _messageService;
+  late MessageStatusService _messageStatusService;
   List<Message> _messages = [];
   bool _isLoading = true;
   bool _isSending = false;
@@ -39,6 +42,7 @@ class _MessagesPageState extends State<MessagesPage> {
   void _initializeServices() {
     _localStorage = serviceLocator.get<LocalStorageService>();
     _messageService = serviceLocator.get<MessageService>();
+    _messageStatusService = serviceLocator.get<MessageStatusService>();
   }
 
   @override
@@ -69,16 +73,56 @@ class _MessagesPageState extends State<MessagesPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Real implementation would use:
+      // Load conversation messages
       final response = await _messageService.getConversation(otherUserId: widget.chatUser.id);
-      setState(() {
-        _messages = response.data ?? [];
-        _isLoading = false;
-      });
+      if (response.isSuccess && response.data != null) {
+        List<Message> messages = response.data!;
+
+        // Apply local status updates from cache
+        for (int i = 0; i < messages.length; i++) {
+          messages[i] = await _messageStatusService.applyLocalStatusUpdates(messages[i]);
+        }
+
+        setState(() {
+          _messages = messages;
+          _isLoading = false;
+        });
+
+        // Mark incoming messages as read when conversation is opened
+        if (_currentUser != null) {
+          await _markIncomingMessagesAsRead();
+        }
+      } else {
+        setState(() {
+          _messages = [];
+          _isLoading = false;
+        });
+      }
 
       _scrollToBottom();
     } catch (e) {
+      print('Error loading messages: $e');
       setState(() => _isLoading = false);
+    }
+  }
+
+  /// Mark all incoming unread messages as read
+  Future<void> _markIncomingMessagesAsRead() async {
+    if (_currentUser == null) return;
+
+    try {
+      final markedIds = await _messageStatusService.markConversationAsRead(_messages, _currentUser!.id);
+
+      if (markedIds.isNotEmpty) {
+        // Update local message status
+        setState(() {
+          for (int messageId in markedIds) {
+            _messages = _messageStatusService.updateMessageStatus(_messages, messageId, MessageStatus.read);
+          }
+        });
+      }
+    } catch (e) {
+      print('Error marking messages as read: $e');
     }
   }
 
@@ -224,7 +268,14 @@ class _MessagesPageState extends State<MessagesPage> {
                     padding: const EdgeInsets.all(16),
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
-                      return _buildMessageBubble(_messages[index]);
+                      final message = _messages[index];
+                      return MessageBubble(
+                        message: message,
+                        currentUser: _currentUser,
+                        showTimestamp: true,
+                        onTap: () => _onMessageTap(message),
+                        onLongPress: () => _onMessageLongPress(message),
+                      );
                     },
                   ),
           ),
@@ -236,89 +287,162 @@ class _MessagesPageState extends State<MessagesPage> {
     );
   }
 
-  Widget _buildMessageBubble(Message message) {
-    final theme = Theme.of(context);
-    final isMe = message.senderId == _currentUser?.id;
+  /// Handle message tap
+  void _onMessageTap(Message message) {
+    // Handle message tap - could show message details, etc.
+    if (kDebugMode) {
+      print('Tapped message: ${message.id}');
+    }
+  }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
+  /// Handle message long press
+  void _onMessageLongPress(Message message) {
+    // Handle message long press - could show context menu
+    _showMessageContextMenu(message);
+  }
+
+  /// Show message context menu
+  void _showMessageContextMenu(Message message) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          if (!isMe) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: theme.colorScheme.primary,
-              child: Text(
-                widget.chatUser.initials,
-                style: TextStyle(color: theme.colorScheme.onPrimary, fontSize: 12, fontWeight: FontWeight.bold),
-              ),
+          if (message.senderId == _currentUser?.id) ...[
+            ListTile(
+              leading: const Icon(Icons.info),
+              title: Text('Message Info'),
+              onTap: () {
+                Navigator.pop(context);
+                _showMessageInfo(message);
+              },
             ),
-            const SizedBox(width: 8),
           ],
-
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: isMe ? theme.colorScheme.primary : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(20),
-                  topRight: const Radius.circular(20),
-                  bottomLeft: Radius.circular(isMe ? 20 : 4),
-                  bottomRight: Radius.circular(isMe ? 4 : 20),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (message.content != null)
-                    Text(
-                      message.content!,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: isMe ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
-                      ),
-                    ),
-
-                  const SizedBox(height: 4),
-
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        DateTimeUtils.formatMessageTime(message.sentAt),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: isMe
-                              ? theme.colorScheme.onPrimary.withOpacity(0.7)
-                              : theme.colorScheme.onSurface.withOpacity(0.6),
-                          fontSize: 11,
-                        ),
-                      ),
-
-                      if (isMe) ...[
-                        const SizedBox(width: 4),
-                        Icon(
-                          message.readAt != null
-                              ? Icons.done_all
-                              : message.deliveredAt != null
-                              ? Icons.done_all
-                              : Icons.done,
-                          size: 16,
-                          color: message.readAt != null ? Colors.blue : theme.colorScheme.onPrimary.withOpacity(0.7),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
+          ListTile(
+            leading: const Icon(Icons.copy),
+            title: Text('Copy'),
+            onTap: () {
+              Navigator.pop(context);
+              // Copy message content to clipboard
+            },
           ),
-
-          if (isMe) const SizedBox(width: 8),
+          if (message.senderId == _currentUser?.id) ...[
+            ListTile(
+              leading: const Icon(Icons.delete),
+              title: Text('Delete'),
+              onTap: () {
+                Navigator.pop(context);
+                _deleteMessage(message);
+              },
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  /// Show message information dialog
+  void _showMessageInfo(Message message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Message Info'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildInfoRow('Status', message.status.value),
+            _buildInfoRow('Sent', DateTimeUtils.formatMessageTime(message.sentAt)),
+            if (message.deliveredAt != null)
+              _buildInfoRow('Delivered', DateTimeUtils.formatMessageTime(message.deliveredAt!)),
+            if (message.readAt != null) _buildInfoRow('Read', DateTimeUtils.formatMessageTime(message.readAt!)),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('Close'))],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(value),
+        ],
+      ),
+    );
+  }
+
+  /// Delete a message
+  void _deleteMessage(Message message) {
+    // Implement message deletion
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete Message'),
+        content: Text('Are you sure you want to delete this message?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performMessageDeletion(message);
+            },
+            child: Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Perform the actual message deletion
+  Future<void> _performMessageDeletion(Message message) async {
+    try {
+      // Call the delete API
+      final success = await _messageStatusService.deleteMessage(message.id);
+
+      if (success) {
+        // Remove message from local list
+        setState(() {
+          _messages = _messageStatusService.removeMessageFromList(_messages, message.id);
+        });
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Message deleted successfully'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete message. You can only delete your own messages.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Handle error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting message: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildMessageInput(ThemeData theme) {

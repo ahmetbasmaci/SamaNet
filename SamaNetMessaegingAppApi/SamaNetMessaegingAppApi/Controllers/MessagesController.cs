@@ -264,6 +264,39 @@ namespace SamaNetMessaegingAppApi.Controllers
         }
 
         /// <summary>
+        /// Delete a message (only sender can delete their own messages)
+        /// </summary>
+        [HttpDelete("{messageId}")]
+        public async Task<ActionResult> DeleteMessage(int messageId, [FromHeader(Name = "X-User-Id")] string? userIdHeader = null)
+        {
+            if (messageId <= 0)
+            {
+                return BadRequest("Valid message ID is required");
+            }
+
+            if (string.IsNullOrEmpty(userIdHeader) || !int.TryParse(userIdHeader, out int userId) || userId <= 0)
+            {
+                return BadRequest("Valid user ID is required in X-User-Id header");
+            }
+
+            try
+            {
+                var success = await _messageService.DeleteMessageAsync(userId, messageId);
+
+                if (!success)
+                {
+                    return NotFound("Message not found or you don't have permission to delete this message");
+                }
+
+                return Ok(new { message = "Message deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Get API status and available endpoints
         /// </summary>
         [HttpGet("status")]
@@ -283,7 +316,8 @@ namespace SamaNetMessaegingAppApi.Controllers
                     markAsRead = "PUT /api/messages/{messageId}/read",
                     markAsDelivered = "PUT /api/messages/{messageId}/delivered",
                     getUnreadCount = "GET /api/messages/unread-count",
-                    getMessage = "GET /api/messages/{messageId}"
+                    getMessage = "GET /api/messages/{messageId}",
+                    deleteMessage = "DELETE /api/messages/{messageId}"
                 },
                 note = "Most endpoints require X-User-Id header for authentication"
             });

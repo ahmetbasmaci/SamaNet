@@ -71,6 +71,11 @@ class DateTimeUtils {
   }
 
   /// Format time as HH:MM
+  static String formatTime(DateTime dateTime) {
+    return _formatTime(dateTime);
+  }
+
+  /// Format time as HH:MM (private helper)
   static String _formatTime(DateTime dateTime) {
     final hour = dateTime.hour.toString().padLeft(2, '0');
     final minute = dateTime.minute.toString().padLeft(2, '0');

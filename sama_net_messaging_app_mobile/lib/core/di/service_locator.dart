@@ -5,6 +5,7 @@ import '../../data/services/message_service.dart';
 import '../../data/services/user_service.dart';
 import '../../data/services/file_service.dart';
 import '../../data/services/chat_service.dart';
+import '../../data/services/message_status_service.dart';
 import '../../presentation/blocs/auth_bloc.dart';
 import '../constants/app_constants.dart';
 
@@ -77,6 +78,11 @@ Future<void> initializeDependencies() async {
   serviceLocator.registerSingleton<FileService>(FileService(serviceLocator.get<ApiClient>()));
 
   serviceLocator.registerSingleton<ChatService>(ChatService(serviceLocator.get<ApiClient>()));
+
+  // Message status service
+  serviceLocator.registerSingleton<MessageStatusService>(
+    MessageStatusService(serviceLocator.get<MessageService>(), serviceLocator.get<LocalStorageService>()),
+  );
 
   // BLoCs (factory pattern for new instances when needed)
   serviceLocator.registerFactory<AuthBloc>(

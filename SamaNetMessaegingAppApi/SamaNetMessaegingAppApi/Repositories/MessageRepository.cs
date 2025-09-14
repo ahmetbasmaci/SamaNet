@@ -36,7 +36,7 @@ namespace SamaNetMessaegingAppApi.Repositories
                 .Include(m => m.Attachments)
                 .Where(m => (m.SenderId == user1Id && m.ReceiverId == user2Id) ||
                            (m.SenderId == user2Id && m.ReceiverId == user1Id))
-                .OrderByDescending(m => m.SentAt)
+                .OrderBy(m => m.SentAt)
                 .Skip(skip)
                 .Take(pageSize)
                 .ToListAsync();
@@ -57,7 +57,7 @@ namespace SamaNetMessaegingAppApi.Repositories
         {
             _context.Messages.Add(message);
             await _context.SaveChangesAsync();
-            
+
             // Load navigation properties
             await _context.Entry(message)
                 .Reference(m => m.Sender)
@@ -68,7 +68,7 @@ namespace SamaNetMessaegingAppApi.Repositories
             await _context.Entry(message)
                 .Collection(m => m.Attachments)
                 .LoadAsync();
-                
+
             return message;
         }
 

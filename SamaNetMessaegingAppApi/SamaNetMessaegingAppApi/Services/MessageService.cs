@@ -160,6 +160,43 @@ namespace SamaNetMessaegingAppApi.Services
             };
         }
 
+        public async Task<bool> DeleteMessageAsync(int userId, int messageId)
+        {
+            var message = await _messageRepository.GetByIdAsync(messageId);
+            
+            // Check if message exists
+            if (message == null)
+                return false;
+            
+            // Check if user has permission to delete (only sender can delete their own messages)
+            if (message.SenderId != userId)
+                return false;
+            
+            // Delete associated attachments first
+            var attachments = message.Attachments?.ToList() ?? new List<Attachment>();
+            foreach (var attachment in attachments)
+            {
+                try
+                {
+                    // Delete the physical file
+                    await _fileService.DeleteFileAsync(attachment.FilePath);
+                    
+                    // Delete attachment record
+                    await _attachmentRepository.DeleteAsync(attachment.Id);
+                }
+                catch (Exception ex)
+                {
+                    // Log error but continue with message deletion
+                    // In production, you might want to handle this differently
+                    Console.WriteLine($"Error deleting attachment {attachment.Id}: {ex.Message}");
+                }
+            }
+            
+            // Delete the message
+            await _messageRepository.DeleteAsync(messageId);
+            return true;
+        }
+
         public async Task<IEnumerable<ConversationResponseDto>> GetRecentConversationsAsync(int userId, int limit = 20)
         {
             // Get all messages where the user is either sender or receiver
