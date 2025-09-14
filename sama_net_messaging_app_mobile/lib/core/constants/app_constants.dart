@@ -2,8 +2,8 @@
 class ApiConstants {
   // Base URL - Update this to match your local API
   static const String baseUrl = _baseUrlEmulator;
-  static const String _baseUrlEmulator = 'https://10.0.2.2:7073/api';
-  static const String _baseUrlRealDevice = 'https://192.168.1.1:7073/api';
+  static const String _baseUrlEmulator = 'http://10.0.2.2:7073/api';
+  static const String _baseUrlRealDevice = 'http://192.168.1.106:7073/api';
 
   // User/Authentication endpoints
   static const String login = '/users/login';

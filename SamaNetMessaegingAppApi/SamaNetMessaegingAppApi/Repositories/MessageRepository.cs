@@ -42,6 +42,17 @@ namespace SamaNetMessaegingAppApi.Repositories
                 .ToListAsync();
         }
 
+        public async Task<IEnumerable<Message>> GetMessagesForUserAsync(int userId)
+        {
+            return await _context.Messages
+                .Include(m => m.Sender)
+                .Include(m => m.Receiver)
+                .Include(m => m.Attachments)
+                .Where(m => m.SenderId == userId || m.ReceiverId == userId)
+                .OrderByDescending(m => m.SentAt)
+                .ToListAsync();
+        }
+
         public async Task<Message> CreateAsync(Message message)
         {
             _context.Messages.Add(message);

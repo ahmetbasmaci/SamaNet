@@ -5,7 +5,7 @@ import '../services/auth_service.dart';
 import '../services/message_service.dart';
 import '../services/file_service.dart';
 import '../services/chat_service.dart';
-import '../../core/constants/app_constants.dart';
+import '../../core/di/service_locator.dart';
 
 /// Example service that demonstrates how to use the updated API endpoints
 class ExampleApiUsage {
@@ -16,11 +16,11 @@ class ExampleApiUsage {
   late final ChatService _chatService;
 
   ExampleApiUsage() {
-    _apiClient = ApiClient(baseUrl: ApiConstants.baseUrl);
-    _authService = AuthService(_apiClient);
-    _messageService = MessageService(_apiClient);
-    _fileService = FileService(_apiClient);
-    _chatService = ChatService(_apiClient);
+    _apiClient = serviceLocator.get<ApiClient>();
+    _authService = serviceLocator.get<AuthService>();
+    _messageService = serviceLocator.get<MessageService>();
+    _fileService = serviceLocator.get<FileService>();
+    _chatService = serviceLocator.get<ChatService>();
   }
 
   /// Example: User registration and login flow

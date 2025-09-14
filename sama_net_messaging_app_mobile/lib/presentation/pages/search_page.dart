@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/arabic_strings.dart';
 import '../../core/utils/validation_utils.dart';
+import '../../core/di/service_locator.dart';
 import '../../data/models/user.dart';
 import '../../data/services/user_service.dart';
-import '../../data/services/api_client.dart';
 import '../../data/services/local_storage_service.dart';
-import '../../core/constants/app_constants.dart';
 import 'messages_page.dart';
 
 /// Search page for finding users by phone number
@@ -18,7 +17,7 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _phoneController = TextEditingController();
-  final LocalStorageService _localStorage = LocalStorageService();
+  late LocalStorageService _localStorage;
   late UserService _userService;
 
   List<User> _searchResults = [];
@@ -45,20 +44,8 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _initializeServices() async {
-    final apiClient = ApiClient(baseUrl: ApiConstants.baseUrl);
-
-    // Set authentication headers
-    final token = await _localStorage.getString('auth_token');
-    final userId = await _localStorage.getUserId();
-
-    if (token != null) {
-      apiClient.setAuthToken(token);
-    }
-    if (userId != null) {
-      apiClient.setUserId(userId.toString());
-    }
-
-    _userService = UserService(apiClient);
+    _localStorage = serviceLocator.get<LocalStorageService>();
+    _userService = serviceLocator.get<UserService>();
   }
 
   Future<void> _loadCurrentUser() async {

@@ -5,6 +5,7 @@ import '../../core/utils/date_time_utils.dart';
 import '../../data/models/message.dart';
 import '../../data/models/user.dart';
 import '../../data/services/local_storage_service.dart';
+import '../../core/di/service_locator.dart';
 
 /// Messages page for chatting with a specific user
 class MessagesPage extends StatefulWidget {
@@ -19,7 +20,7 @@ class MessagesPage extends StatefulWidget {
 class _MessagesPageState extends State<MessagesPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final LocalStorageService _localStorage = LocalStorageService();
+  late LocalStorageService _localStorage;
 
   List<Message> _messages = [];
   bool _isLoading = true;
@@ -29,8 +30,13 @@ class _MessagesPageState extends State<MessagesPage> {
   @override
   void initState() {
     super.initState();
+    _initializeServices();
     _loadCurrentUser();
     _loadMessages();
+  }
+
+  void _initializeServices() {
+    _localStorage = serviceLocator.get<LocalStorageService>();
   }
 
   @override

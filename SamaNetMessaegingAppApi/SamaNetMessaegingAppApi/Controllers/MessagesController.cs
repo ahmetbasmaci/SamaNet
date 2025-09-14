@@ -235,6 +235,35 @@ namespace SamaNetMessaegingAppApi.Controllers
         }
 
         /// <summary>
+        /// Get recent conversations for current user
+        /// </summary>
+        [HttpGet("recent-conversations")]
+        public async Task<ActionResult<IEnumerable<ConversationResponseDto>>> GetRecentConversations(
+            [FromQuery] int limit = 20,
+            [FromHeader(Name = "X-User-Id")] string? userIdHeader = null)
+        {
+            if (string.IsNullOrEmpty(userIdHeader) || !int.TryParse(userIdHeader, out int userId) || userId <= 0)
+            {
+                return BadRequest("Valid user ID is required in X-User-Id header");
+            }
+
+            if (limit <= 0 || limit > 100)
+            {
+                return BadRequest("Limit must be between 1 and 100");
+            }
+
+            try
+            {
+                var conversations = await _messageService.GetRecentConversationsAsync(userId, limit);
+                return Ok(conversations);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Get API status and available endpoints
         /// </summary>
         [HttpGet("status")]
@@ -250,6 +279,7 @@ namespace SamaNetMessaegingAppApi.Controllers
                     sendMessage = "POST /api/messages/send",
                     sendWithAttachment = "POST /api/messages/send-with-attachment",
                     getConversation = "GET /api/messages/conversation",
+                    getRecentConversations = "GET /api/messages/recent-conversations",
                     markAsRead = "PUT /api/messages/{messageId}/read",
                     markAsDelivered = "PUT /api/messages/{messageId}/delivered",
                     getUnreadCount = "GET /api/messages/unread-count",

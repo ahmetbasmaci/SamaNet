@@ -103,4 +103,16 @@ namespace SamaNetMessaegingAppApi.DTOs
         public string MessageType { get; set; } = "file";
     }
 
+    /// <summary>
+    /// DTO for conversation response in recent conversations list
+    /// </summary>
+    public class ConversationResponseDto
+    {
+        public int Id { get; set; }
+        public UserResponseDto OtherUser { get; set; } = new UserResponseDto();
+        public MessageResponseDto? LastMessage { get; set; }
+        public int UnreadCount { get; set; }
+        public DateTime LastActivity { get; set; }
+    }
+
 }

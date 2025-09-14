@@ -159,5 +159,66 @@ namespace SamaNetMessaegingAppApi.Services
                 ReceiverUsername = message.Receiver?.Username
             };
         }
+
+        public async Task<IEnumerable<ConversationResponseDto>> GetRecentConversationsAsync(int userId, int limit = 20)
+        {
+            // Get all messages where the user is either sender or receiver
+            var userMessages = await _messageRepository.GetMessagesForUserAsync(userId);
+
+            // Group messages by conversation partner
+            var conversationGroups = userMessages
+                .GroupBy(m => m.SenderId == userId ? m.ReceiverId : m.SenderId)
+                .Select(g => new
+                {
+                    OtherUserId = g.Key,
+                    Messages = g.OrderByDescending(m => m.SentAt).ToList()
+                })
+                .Take(limit)
+                .ToList();
+
+            var conversations = new List<ConversationResponseDto>();
+
+            foreach (var group in conversationGroups)
+            {
+                var otherUser = await _userRepository.GetByIdAsync(group.OtherUserId);
+                if (otherUser == null) continue;
+
+                var lastMessage = group.Messages.First();
+                var unreadCount = group.Messages.Count(m => m.ReceiverId == userId && m.ReadAt == null);
+
+                conversations.Add(new ConversationResponseDto
+                {
+                    Id = group.OtherUserId, // Using other user's ID as conversation ID
+                    OtherUser = new UserResponseDto
+                    {
+                        Id = otherUser.Id,
+                        Username = otherUser.Username,
+                        PhoneNumber = otherUser.PhoneNumber,
+                        DisplayName = otherUser.DisplayName,
+                        CreatedAt = otherUser.CreatedAt,
+                        LastSeen = otherUser.LastSeen,
+                        IsOnline = otherUser.LastSeen.HasValue && 
+                                  DateTime.UtcNow.Subtract(otherUser.LastSeen.Value).TotalMinutes <= 5
+                    },
+                    LastMessage = new MessageResponseDto
+                    {
+                        Id = lastMessage.Id,
+                        SenderId = lastMessage.SenderId,
+                        ReceiverId = lastMessage.ReceiverId,
+                        MessageType = lastMessage.MessageType,
+                        Content = lastMessage.Content,
+                        SentAt = lastMessage.SentAt,
+                        DeliveredAt = lastMessage.DeliveredAt,
+                        ReadAt = lastMessage.ReadAt,
+                        SenderUsername = lastMessage.Sender?.Username,
+                        ReceiverUsername = lastMessage.Receiver?.Username
+                    },
+                    UnreadCount = unreadCount,
+                    LastActivity = lastMessage.SentAt
+                });
+            }
+
+            return conversations.OrderByDescending(c => c.LastActivity);
+        }
     }
 }

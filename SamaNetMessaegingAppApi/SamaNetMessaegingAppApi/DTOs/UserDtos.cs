@@ -60,6 +60,7 @@ namespace SamaNetMessaegingAppApi.DTOs
         public string? DisplayName { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastSeen { get; set; }
+        public bool IsOnline { get; set; }
     }
 
     /// <summary>

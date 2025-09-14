@@ -9,6 +9,7 @@ namespace SamaNetMessaegingAppApi.Repositories.Interfaces
     {
         Task<Message?> GetByIdAsync(int id);
         Task<IEnumerable<Message>> GetConversationAsync(int user1Id, int user2Id, int page = 1, int pageSize = 50);
+        Task<IEnumerable<Message>> GetMessagesForUserAsync(int userId);
         Task<Message> CreateAsync(Message message);
         Task<Message> UpdateAsync(Message message);
         Task DeleteAsync(int id);
