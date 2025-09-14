@@ -30,7 +30,7 @@ namespace SamaNetMessaegingAppApi.Controllers
             }
 
             var result = await _userService.LoginAsync(loginRequest);
-            
+
             if (result.Success)
             {
                 return Ok(result);
@@ -51,7 +51,7 @@ namespace SamaNetMessaegingAppApi.Controllers
             }
 
             var result = await _userService.RegisterAsync(registerRequest);
-            
+
             if (result.Success)
             {
                 return Ok(result);
@@ -82,7 +82,7 @@ namespace SamaNetMessaegingAppApi.Controllers
         public async Task<ActionResult<UserResponseDto>> GetUser(int id)
         {
             var user = await _userService.GetUserByIdAsync(id);
-            
+
             if (user == null)
             {
                 return NotFound("User not found");
