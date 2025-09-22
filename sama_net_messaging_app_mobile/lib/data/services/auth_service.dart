@@ -27,8 +27,9 @@ class AuthService {
 
         // Cache the current user for offline access
         await _localStorage.saveCurrentUser(response.data!.user!);
+      } else {
+        throw Exception(response.error);
       }
-
       return response;
     } catch (e) {
       return ApiResponse.error('Login failed: ${e.toString()}');

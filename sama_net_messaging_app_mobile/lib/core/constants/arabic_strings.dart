@@ -54,6 +54,22 @@ class ArabicStrings {
   static const String loginFailed = 'فشل تسجيل الدخول';
   static const String registrationFailed = 'فشل التسجيل';
 
+  // Specific login error messages
+  static const String wrongUsernameOrPassword = 'اسم المستخدم أو كلمة المرور خاطئة';
+  static const String accountNotFound = 'لم يتم العثور على الحساب';
+  static const String accountDisabled = 'الحساب غير مفعل';
+  static const String networkConnectionError = 'تحقق من اتصال الإنترنت';
+  static const String serverUnavailable = 'الخادم غير متاح حالياً';
+  static const String requestTimeout = 'انتهت مهلة الطلب، يرجى المحاولة مرة أخرى';
+  static const String unexpectedError = 'حدث خطأ غير متوقع';
+  static const String emptyUsername = 'يرجى إدخال اسم المستخدم';
+  static const String emptyPassword = 'يرجى إدخال كلمة المرور';
+  static const String usernameMinLength = 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل';
+  static const String passwordMinLength = 'كلمة المرور يجب أن تكون 3 أحرف على الأقل';
+  static const String invalidUsernameFormat = 'اسم المستخدم يحتوي على أحرف غير مسموحة';
+  static const String loginSuccessful = 'تم تسجيل الدخول بنجاح';
+  static const String pleaseTryAgain = 'يرجى المحاولة مرة أخرى';
+
   // Search
   static const String search = 'بحث';
   static const String searchByPhone = 'البحث برقم الهاتف';

@@ -47,8 +47,21 @@ class AuthUnauthenticated extends AuthState {}
 
 class AuthError extends AuthState {
   final String message;
+  final AuthErrorType errorType;
 
-  AuthError(this.message);
+  AuthError(this.message, {this.errorType = AuthErrorType.general});
+}
+
+/// Authentication error types for more specific error handling
+enum AuthErrorType {
+  general,
+  invalidCredentials,
+  networkError,
+  serverError,
+  accountNotFound,
+  accountDisabled,
+  timeout,
+  validationError
 }
 
 /// Authentication BLoC
@@ -112,6 +125,27 @@ class AuthBloc extends BaseBloc {
     emit(AuthLoading());
 
     try {
+      // Client-side validation first
+      if (event.username.trim().isEmpty) {
+        emit(AuthError(ArabicStrings.emptyUsername, errorType: AuthErrorType.validationError));
+        return;
+      }
+
+      if (event.password.trim().isEmpty) {
+        emit(AuthError(ArabicStrings.emptyPassword, errorType: AuthErrorType.validationError));
+        return;
+      }
+
+      if (event.username.length < 3) {
+        emit(AuthError(ArabicStrings.usernameMinLength, errorType: AuthErrorType.validationError));
+        return;
+      }
+
+      if (event.password.length < 3) {
+        emit(AuthError(ArabicStrings.passwordMinLength, errorType: AuthErrorType.validationError));
+        return;
+      }
+
       final loginRequest = LoginRequest(username: event.username, password: event.password);
 
       final response = await authService.login(loginRequest);
@@ -129,13 +163,75 @@ class AuthBloc extends BaseBloc {
 
           emit(AuthAuthenticated(user: authData.user!, accessToken: authData.token!));
         } else {
-          emit(AuthError(authData.message));
+          // Parse API error message for more specific error types
+          final String errorMessage = authData.message.toLowerCase();
+          AuthErrorType errorType = AuthErrorType.general;
+          String userMessage = authData.message;
+
+          if (errorMessage.contains('invalid') ||
+              errorMessage.contains('wrong') ||
+              errorMessage.contains('incorrect') ||
+              errorMessage.contains('credentials')) {
+            errorType = AuthErrorType.invalidCredentials;
+            userMessage = ArabicStrings.wrongUsernameOrPassword;
+          } else if (errorMessage.contains('not found') || errorMessage.contains('not exist')) {
+            errorType = AuthErrorType.accountNotFound;
+            userMessage = ArabicStrings.accountNotFound;
+          } else if (errorMessage.contains('disabled') || errorMessage.contains('blocked')) {
+            errorType = AuthErrorType.accountDisabled;
+            userMessage = ArabicStrings.accountDisabled;
+          }
+
+          emit(AuthError(userMessage, errorType: errorType));
         }
       } else {
-        emit(AuthError(response.error ?? ArabicStrings.loginFailed));
+        // Handle HTTP/Network errors
+        final String errorMessage = (response.error ?? '').toLowerCase();
+        AuthErrorType errorType = AuthErrorType.general;
+        String userMessage = response.error ?? ArabicStrings.loginFailed;
+        print('Error message: $errorMessage');
+        if (errorMessage.contains('network') ||
+            errorMessage.contains('connection') ||
+            errorMessage.contains('internet') ||
+            errorMessage.contains('dns')) {
+          errorType = AuthErrorType.networkError;
+          userMessage = ArabicStrings.networkConnectionError;
+        } else if (errorMessage.contains('server') ||
+            errorMessage.contains('500') ||
+            errorMessage.contains('503') ||
+            errorMessage.contains('unavailable')) {
+          errorType = AuthErrorType.serverError;
+          userMessage = ArabicStrings.serverUnavailable;
+        } else if (errorMessage.contains('timeout')) {
+          errorType = AuthErrorType.timeout;
+          userMessage = ArabicStrings.requestTimeout;
+        } else if (errorMessage.contains('401') || errorMessage.contains('unauthorized')) {
+          errorType = AuthErrorType.invalidCredentials;
+          userMessage = ArabicStrings.wrongUsernameOrPassword;
+        }
+
+        emit(AuthError(userMessage, errorType: errorType));
       }
     } catch (e) {
-      emit(AuthError('${ArabicStrings.loginFailed}: ${e.toString()}'));
+      String errorMessage = e.toString().toLowerCase();
+      AuthErrorType errorType = AuthErrorType.general;
+      String userMessage = ArabicStrings.unexpectedError;
+
+      if (errorMessage.contains('socket') ||
+          errorMessage.contains('network') ||
+          errorMessage.contains('connection') ||
+          errorMessage.contains('dns')) {
+        errorType = AuthErrorType.networkError;
+        userMessage = ArabicStrings.networkConnectionError;
+      } else if (errorMessage.contains('timeout')) {
+        errorType = AuthErrorType.timeout;
+        userMessage = ArabicStrings.requestTimeout;
+      } else if (errorMessage.contains('server')) {
+        errorType = AuthErrorType.serverError;
+        userMessage = ArabicStrings.serverUnavailable;
+      }
+
+      emit(AuthError(userMessage, errorType: errorType));
     }
   }
 
@@ -166,13 +262,13 @@ class AuthBloc extends BaseBloc {
 
           emit(AuthAuthenticated(user: authData.user!, accessToken: authData.token!));
         } else {
-          emit(AuthError(authData.message));
+          emit(AuthError(authData.message, errorType: AuthErrorType.general));
         }
       } else {
-        emit(AuthError(response.error ?? ArabicStrings.registrationFailed));
+        emit(AuthError(response.error ?? ArabicStrings.registrationFailed, errorType: AuthErrorType.general));
       }
     } catch (e) {
-      emit(AuthError('${ArabicStrings.registrationFailed}: ${e.toString()}'));
+      emit(AuthError('${ArabicStrings.registrationFailed}: ${e.toString()}', errorType: AuthErrorType.general));
     }
   }
 

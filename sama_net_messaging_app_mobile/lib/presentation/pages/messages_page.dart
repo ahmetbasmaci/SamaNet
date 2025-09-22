@@ -7,9 +7,13 @@ import '../../data/models/message.dart';
 import '../../data/models/user.dart';
 import '../../data/services/local_storage_service.dart';
 import '../../data/services/message_status_service.dart';
+import '../../data/services/file_service.dart';
 import '../widgets/message_bubble.dart';
 import '../../core/di/service_locator.dart';
 import '../../core/services/conversation_update_notifier.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 /// Messages page for chatting with a specific user
 class MessagesPage extends StatefulWidget {
@@ -27,10 +31,13 @@ class _MessagesPageState extends State<MessagesPage> {
   late LocalStorageService _localStorage;
   late MessageService _messageService;
   late MessageStatusService _messageStatusService;
+  late FileService _fileService;
   late ConversationUpdateNotifier _updateNotifier;
+  final ImagePicker _imagePicker = ImagePicker();
   List<Message> _messages = [];
   bool _isLoading = true;
   bool _isSending = false;
+  bool _isUploadingFile = false;
   User? _currentUser;
 
   @override
@@ -45,6 +52,7 @@ class _MessagesPageState extends State<MessagesPage> {
     _localStorage = serviceLocator.get<LocalStorageService>();
     _messageService = serviceLocator.get<MessageService>();
     _messageStatusService = serviceLocator.get<MessageStatusService>();
+    _fileService = serviceLocator.get<FileService>();
     _updateNotifier = serviceLocator.get<ConversationUpdateNotifier>();
   }
 
@@ -255,7 +263,7 @@ class _MessagesPageState extends State<MessagesPage> {
               }
             },
             itemBuilder: (context) => [
-              PopupMenuItem(value: 'clear', child: Text(ArabicStrings.delete)),
+              const PopupMenuItem(value: 'clear', child: Text(ArabicStrings.delete)),
               const PopupMenuItem(value: 'block', child: Text('حظر المستخدم')),
             ],
           ),
@@ -268,27 +276,28 @@ class _MessagesPageState extends State<MessagesPage> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _messages.isEmpty
-                ? Center(
-                    child: Text(
-                      ArabicStrings.noMessages,
-                      style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6)),
-                    ),
-                  )
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final message = _messages[index];
-                      return MessageBubble(
-                        message: message,
-                        currentUser: _currentUser,
-                        showTimestamp: true,
-                        onTap: () => _onMessageTap(message),
-                        onLongPress: () => _onMessageLongPress(message),
-                      );
-                    },
-                  ),
+                    ? Center(
+                        child: Text(
+                          ArabicStrings.noMessages,
+                          style:
+                              theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _messages.length,
+                        itemBuilder: (context, index) {
+                          final message = _messages[index];
+                          return MessageBubble(
+                            message: message,
+                            currentUser: _currentUser,
+                            showTimestamp: true,
+                            onTap: () => _onMessageTap(message),
+                            onLongPress: () => _onMessageLongPress(message),
+                          );
+                        },
+                      ),
           ),
 
           // Message Input
@@ -322,7 +331,7 @@ class _MessagesPageState extends State<MessagesPage> {
           if (message.senderId == _currentUser?.id) ...[
             ListTile(
               leading: const Icon(Icons.info),
-              title: Text('معلومات الرسالة'),
+              title: const Text('معلومات الرسالة'),
               onTap: () {
                 Navigator.pop(context);
                 _showMessageInfo(message);
@@ -331,7 +340,7 @@ class _MessagesPageState extends State<MessagesPage> {
           ],
           ListTile(
             leading: const Icon(Icons.copy),
-            title: Text('نسخ'),
+            title: const Text('نسخ'),
             onTap: () {
               Navigator.pop(context);
               // Copy message content to clipboard
@@ -340,7 +349,7 @@ class _MessagesPageState extends State<MessagesPage> {
           if (message.senderId == _currentUser?.id) ...[
             ListTile(
               leading: const Icon(Icons.delete),
-              title: Text('حذف'),
+              title: const Text('حذف'),
               onTap: () {
                 Navigator.pop(context);
                 _deleteMessage(message);
@@ -357,7 +366,7 @@ class _MessagesPageState extends State<MessagesPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('معلومات الرسالة'),
+        title: const Text('معلومات الرسالة'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,7 +378,7 @@ class _MessagesPageState extends State<MessagesPage> {
             if (message.readAt != null) _buildInfoRow('تم القراءة', DateTimeUtils.formatMessageTime(message.readAt!)),
           ],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('إغلاق'))],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))],
       ),
     );
   }
@@ -392,16 +401,16 @@ class _MessagesPageState extends State<MessagesPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('حذف الرسالة'),
-        content: Text('هل أنت متأكد من أنك تريد حذف هذه الرسالة لنفسك؟ سيؤدي هذا إلى إزالتها من عرضك فقط.'),
+        title: const Text('حذف الرسالة'),
+        content: const Text('هل أنت متأكد من أنك تريد حذف هذه الرسالة لنفسك؟ سيؤدي هذا إلى إزالتها من عرضك فقط.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
               await _performMessageDeletion(message);
             },
-            child: Text('حذف لي'),
+            child: const Text('حذف لي'),
           ),
         ],
       ),
@@ -423,14 +432,15 @@ class _MessagesPageState extends State<MessagesPage> {
         // Show success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('تم حذف الرسالة لك'), backgroundColor: Colors.green, duration: Duration(seconds: 2)),
+            const SnackBar(
+                content: Text('تم حذف الرسالة لك'), backgroundColor: Colors.green, duration: Duration(seconds: 2)),
           );
         }
       } else {
         // Show error message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text('فشل في حذف الرسالة. يمكنك حذف الرسائل من محادثاتك فقط.'),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 3),
@@ -445,7 +455,7 @@ class _MessagesPageState extends State<MessagesPage> {
           SnackBar(
             content: Text('خطأ في حذف الرسالة: ${e.toString()}'),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -462,22 +472,47 @@ class _MessagesPageState extends State<MessagesPage> {
       child: Row(
         children: [
           // Attachment button
-          IconButton(icon: const Icon(Icons.attach_file), onPressed: _showAttachmentOptions),
+          IconButton(
+            icon: const Icon(Icons.attach_file),
+            onPressed: _isUploadingFile ? null : _showAttachmentOptions,
+          ),
 
           // Message input field
           Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: ArabicStrings.typeMessage,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              ),
-              maxLines: null,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _sendMessage(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Upload progress indicator
+                if (_isUploadingFile)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 8),
+                        Text('جاري رفع الملف...', style: theme.textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                // Text input
+                TextField(
+                  controller: _messageController,
+                  decoration: InputDecoration(
+                    hintText: ArabicStrings.typeMessage,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
+                    filled: true,
+                    fillColor: theme.colorScheme.surfaceContainerHighest,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  ),
+                  maxLines: null,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _sendMessage(),
+                ),
+              ],
             ),
           ),
 
@@ -497,7 +532,7 @@ class _MessagesPageState extends State<MessagesPage> {
                       ),
                     )
                   : Icon(Icons.send, color: theme.colorScheme.onPrimary),
-              onPressed: _isSending ? null : _sendMessage,
+              onPressed: (_isSending || _isUploadingFile) ? null : _sendMessage,
             ),
           ),
         ],
@@ -515,26 +550,42 @@ class _MessagesPageState extends State<MessagesPage> {
           children: [
             ListTile(
               leading: const Icon(Icons.camera_alt),
-              title: Text(ArabicStrings.camera),
+              title: const Text(ArabicStrings.camera),
               onTap: () {
                 Navigator.pop(context);
-                // Implement camera functionality
+                _pickImageFromCamera();
               },
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: Text(ArabicStrings.gallery),
+              title: const Text(ArabicStrings.gallery),
               onTap: () {
                 Navigator.pop(context);
-                // Implement gallery functionality
+                _pickImageFromGallery();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam),
+              title: const Text('فيديو من الكاميرا'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickVideoFromCamera();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.video_library),
+              title: const Text('فيديو من المعرض'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickVideoFromGallery();
               },
             ),
             ListTile(
               leading: const Icon(Icons.insert_drive_file),
-              title: Text(ArabicStrings.selectFile),
+              title: const Text(ArabicStrings.selectFile),
               onTap: () {
                 Navigator.pop(context);
-                // Implement file selection functionality
+                _pickFile();
               },
             ),
           ],
@@ -543,14 +594,240 @@ class _MessagesPageState extends State<MessagesPage> {
     );
   }
 
+  /// Pick image from camera
+  Future<void> _pickImageFromCamera() async {
+    try {
+      // Request camera permission
+      final cameraStatus = await Permission.camera.request();
+      if (!cameraStatus.isGranted) {
+        _showPermissionDeniedSnackBar('الكاميرا');
+        return;
+      }
+
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        await _uploadAndSendFile(image.path, 'image');
+      }
+    } catch (e) {
+      _showErrorSnackBar('خطأ في التقاط الصورة: ${e.toString()}');
+    }
+  }
+
+  /// Pick image from gallery
+  Future<void> _pickImageFromGallery() async {
+    try {
+      // Request photo permission
+      final photoStatus = await Permission.photos.request();
+      if (!photoStatus.isGranted) {
+        _showPermissionDeniedSnackBar('المعرض');
+        return;
+      }
+
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        await _uploadAndSendFile(image.path, 'image');
+      }
+    } catch (e) {
+      _showErrorSnackBar('خطأ في اختيار الصورة: ${e.toString()}');
+    }
+  }
+
+  /// Pick video from camera
+  Future<void> _pickVideoFromCamera() async {
+    try {
+      // Request camera permission
+      final cameraStatus = await Permission.camera.request();
+      if (!cameraStatus.isGranted) {
+        _showPermissionDeniedSnackBar('الكاميرا');
+        return;
+      }
+
+      final XFile? video = await _imagePicker.pickVideo(
+        source: ImageSource.camera,
+        maxDuration: const Duration(minutes: 10),
+      );
+
+      if (video != null) {
+        await _uploadAndSendFile(video.path, 'video');
+      }
+    } catch (e) {
+      _showErrorSnackBar('خطأ في تسجيل الفيديو: ${e.toString()}');
+    }
+  }
+
+  /// Pick video from gallery
+  Future<void> _pickVideoFromGallery() async {
+    try {
+      // Request photo permission
+      final photoStatus = await Permission.photos.request();
+      if (!photoStatus.isGranted) {
+        _showPermissionDeniedSnackBar('المعرض');
+        return;
+      }
+
+      final XFile? video = await _imagePicker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(minutes: 10),
+      );
+
+      if (video != null) {
+        await _uploadAndSendFile(video.path, 'video');
+      }
+    } catch (e) {
+      _showErrorSnackBar('خطأ في اختيار الفيديو: ${e.toString()}');
+    }
+  }
+
+  /// Pick file from device
+  Future<void> _pickFile() async {
+    try {
+      // Request storage permission
+      final storageStatus = await Permission.storage.request();
+      if (!storageStatus.isGranted) {
+        _showPermissionDeniedSnackBar('التخزين');
+        return;
+      }
+
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+        allowedExtensions: null,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final file = result.files.single;
+        final filePath = file.path!;
+
+        // Check file size (10MB limit)
+        final fileSize = await _fileService.getFileSize(filePath);
+        if (!_fileService.isFileSizeValid(fileSize)) {
+          _showErrorSnackBar('حجم الملف كبير جداً. الحد الأقصى 10 ميجابايت');
+          return;
+        }
+
+        // Check if file type is supported
+        if (!_fileService.isFileTypeSupported(filePath)) {
+          _showErrorSnackBar('نوع الملف غير مدعوم');
+          return;
+        }
+
+        final messageType = _fileService.getMessageTypeFromFile(filePath);
+        await _uploadAndSendFile(filePath, messageType);
+      }
+    } catch (e) {
+      _showErrorSnackBar('خطأ في اختيار الملف: ${e.toString()}');
+    }
+  }
+
+  /// Upload file and send message
+  Future<void> _uploadAndSendFile(String filePath, String messageType) async {
+    if (_currentUser == null) return;
+
+    setState(() => _isUploadingFile = true);
+
+    try {
+      // Upload file first
+      final uploadResponse = await _fileService.uploadFile(
+        filePath: filePath,
+        messageType: messageType,
+      );
+
+      if (uploadResponse.isSuccess && uploadResponse.data != null) {
+        final uploadData = uploadResponse.data!;
+
+        // Send message with attachment
+        final messageResponse = await _messageService.sendMessageWithAttachment(
+          receiverId: widget.chatUser.id,
+          content: _getFileDescription(filePath, messageType),
+          messageType: messageType,
+          filePath: uploadData.filePath ?? filePath,
+        );
+
+        if (messageResponse.isSuccess && messageResponse.data != null) {
+          // Add message to local list
+          setState(() {
+            _messages.add(messageResponse.data!);
+          });
+
+          // Scroll to bottom
+          _scrollToBottom();
+
+          // Notify that conversations need to be updated
+          _updateNotifier.notifyConversationUpdate();
+        } else {
+          _showErrorSnackBar('فشل في إرسال الرسالة');
+        }
+      } else {
+        _showErrorSnackBar('فشل في رفع الملف: ${uploadResponse.error}');
+      }
+    } catch (e) {
+      _showErrorSnackBar('خطأ في إرسال الملف: ${e.toString()}');
+    } finally {
+      setState(() => _isUploadingFile = false);
+    }
+  }
+
+  /// Get file description based on type
+  String _getFileDescription(String filePath, String messageType) {
+    final fileName = filePath.split('/').last;
+    switch (messageType) {
+      case 'image':
+        return 'صورة: $fileName';
+      case 'video':
+        return 'فيديو: $fileName';
+      case 'audio':
+        return 'ملف صوتي: $fileName';
+      default:
+        return 'ملف: $fileName';
+    }
+  }
+
+  /// Show permission denied snackbar
+  void _showPermissionDeniedSnackBar(String permissionType) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('لا يمكن الوصول إلى $permissionType. يرجى منح الإذن من الإعدادات.'),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'الإعدادات',
+          onPressed: () => openAppSettings(),
+        ),
+      ),
+    );
+  }
+
+  /// Show error snackbar
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   void _clearChat() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(ArabicStrings.delete),
+        title: const Text(ArabicStrings.delete),
         content: const Text('هل تريد حذف جميع الرسائل؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(ArabicStrings.cancel)),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text(ArabicStrings.cancel)),
           TextButton(
             onPressed: () {
               setState(() {
@@ -558,7 +835,7 @@ class _MessagesPageState extends State<MessagesPage> {
               });
               Navigator.pop(context);
             },
-            child: Text(ArabicStrings.delete),
+            child: const Text(ArabicStrings.delete),
           ),
         ],
       ),
@@ -572,7 +849,7 @@ class _MessagesPageState extends State<MessagesPage> {
         title: const Text('حظر المستخدم'),
         content: Text('هل تريد حظر ${widget.chatUser.name}؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(ArabicStrings.cancel)),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text(ArabicStrings.cancel)),
           TextButton(
             onPressed: () {
               // Implement block functionality

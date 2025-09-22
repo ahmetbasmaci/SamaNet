@@ -53,10 +53,77 @@ class _LoginPageState extends State<LoginPage> {
           bloc: BlocProvider.of<AuthBloc>(context),
           listener: (context, state) {
             if (state is AuthError) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(state.message), backgroundColor: theme.colorScheme.error));
+              // Enhanced error handling with different styles based on error type
+              Color backgroundColor = theme.colorScheme.error;
+              IconData icon = Icons.error_outline;
+
+              switch (state.errorType) {
+                case AuthErrorType.validationError:
+                  backgroundColor = theme.colorScheme.secondary;
+                  icon = Icons.warning_amber_outlined;
+                  break;
+                case AuthErrorType.networkError:
+                  backgroundColor = Colors.orange;
+                  icon = Icons.wifi_off_outlined;
+                  break;
+                case AuthErrorType.invalidCredentials:
+                  backgroundColor = theme.colorScheme.error;
+                  icon = Icons.lock_outline;
+                  break;
+                case AuthErrorType.timeout:
+                  backgroundColor = Colors.amber;
+                  icon = Icons.timer_outlined;
+                  break;
+                default:
+                  backgroundColor = theme.colorScheme.error;
+                  icon = Icons.error_outline;
+              }
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      Icon(icon, color: Colors.white, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          state.message,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: backgroundColor,
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 4),
+                  action: state.errorType == AuthErrorType.networkError
+                      ? SnackBarAction(
+                          label: ArabicStrings.pleaseTryAgain,
+                          textColor: Colors.white,
+                          onPressed: _handleLogin,
+                        )
+                      : null,
+                ),
+              );
             } else if (state is AuthAuthenticated) {
+              // Show success message
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Row(
+                    children: [
+                      Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        ArabicStrings.loginSuccessful,
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
+                  duration: Duration(seconds: 2),
+                ),
+              );
               Navigator.of(context).pushReplacementNamed('/main');
             }
           },
@@ -95,26 +162,19 @@ class _LoginPageState extends State<LoginPage> {
 
                       const SizedBox(height: 48),
 
-                      // Email/Phone Input
+                      // Username Input
                       TextFormField(
                         controller: _identifierController,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: ArabicStrings.nameOrPhone,
-                          prefixIcon: const Icon(Icons.person_outline),
+                          prefixIcon: Icon(Icons.person_outline),
+                          helperText: ArabicStrings.usernameMinLength,
+                          helperMaxLines: 2,
                         ),
-                        keyboardType: TextInputType.emailAddress,
+                        keyboardType: TextInputType.text,
                         textInputAction: TextInputAction.next,
                         enabled: !isLoading,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return ArabicStrings.nameOrPhoneRequired;
-                          }
-                          // Check if it's email or phone format
-                          if (!ValidationUtils.isValidName(value) && !ValidationUtils.isValidPhone(value)) {
-                            return ArabicStrings.enterValidNameOrPhone;
-                          }
-                          return null;
-                        },
+                        validator: ValidationUtils.validateUsername,
                       ),
 
                       const SizedBox(height: 16),
@@ -125,6 +185,7 @@ class _LoginPageState extends State<LoginPage> {
                         decoration: InputDecoration(
                           labelText: ArabicStrings.password,
                           prefixIcon: const Icon(Icons.lock_outline),
+                          helperText: ArabicStrings.passwordMinLength,
                           suffixIcon: IconButton(
                             icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
                             onPressed: () {
@@ -148,7 +209,7 @@ class _LoginPageState extends State<LoginPage> {
                         onPressed: isLoading ? null : _handleLogin,
                         child: isLoading
                             ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                            : Text(ArabicStrings.login),
+                            : const Text(ArabicStrings.login),
                       ),
 
                       const SizedBox(height: 16),
@@ -161,7 +222,7 @@ class _LoginPageState extends State<LoginPage> {
                                 // TODO: Implement forgot password
                                 ScaffoldMessenger.of(
                                   context,
-                                ).showSnackBar(SnackBar(content: Text(ArabicStrings.forgotPasswordComingSoon)));
+                                ).showSnackBar(const SnackBar(content: Text(ArabicStrings.forgotPasswordComingSoon)));
                               },
                         child: Text(ArabicStrings.forgotPassword, style: TextStyle(color: theme.colorScheme.primary)),
                       ),
@@ -189,7 +250,7 @@ class _LoginPageState extends State<LoginPage> {
                             : () {
                                 Navigator.of(context).pushNamed('/register');
                               },
-                        child: Text(ArabicStrings.createNewAccount),
+                        child: const Text(ArabicStrings.createNewAccount),
                       ),
                     ],
                   ),

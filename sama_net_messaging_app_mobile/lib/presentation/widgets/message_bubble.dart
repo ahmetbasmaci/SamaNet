@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../data/models/message.dart';
 import '../../data/models/user.dart';
+import '../../data/services/file_service.dart';
 import '../../core/utils/date_time_utils.dart';
+import '../../core/di/service_locator.dart';
+import 'media_viewer.dart';
 
 /// Message bubble widget with status indicators
 class MessageBubble extends StatelessWidget {
@@ -63,7 +67,7 @@ class MessageBubble extends StatelessWidget {
                     ],
 
                     // Attachments
-                    if (message.hasAttachment) ...[const SizedBox(height: 8), _buildAttachments()],
+                    if (message.hasAttachment) ...[const SizedBox(height: 8), _buildAttachments(context)],
 
                     // Timestamp and status
                     const SizedBox(height: 6),
@@ -100,7 +104,7 @@ class MessageBubble extends StatelessWidget {
       height: 32,
       margin: const EdgeInsets.only(bottom: 2),
       decoration: BoxDecoration(color: isOwnMessage ? Colors.blue : Colors.grey, shape: BoxShape.circle),
-      child: Icon(Icons.person, size: 20, color: Colors.white),
+      child: const Icon(Icons.person, size: 20, color: Colors.white),
     );
   }
 
@@ -134,120 +138,177 @@ class MessageBubble extends StatelessWidget {
     return Icon(icon, size: 16, color: color);
   }
 
-  Widget _buildAttachments() {
+  Widget _buildAttachments(BuildContext context) {
     return Column(
       children: message.attachments.map((attachment) {
         switch (message.type) {
           case MessageType.image:
-            return _buildImageAttachment(attachment);
+            return _buildImageAttachment(attachment, context);
           case MessageType.video:
-            return _buildVideoAttachment(attachment);
+            return _buildVideoAttachment(attachment, context);
           case MessageType.audio:
-            return _buildAudioAttachment(attachment);
+            return _buildAudioAttachment(attachment, context);
           case MessageType.file:
-            return _buildFileAttachment(attachment);
+            return _buildFileAttachment(attachment, context);
           default:
-            return _buildFileAttachment(attachment);
+            return _buildFileAttachment(attachment, context);
         }
       }).toList(),
     );
   }
 
-  Widget _buildImageAttachment(attachment) {
-    return Container(
-      constraints: const BoxConstraints(maxHeight: 200),
-      child: ClipRRectangle(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          attachment.filePath,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
+  Widget _buildImageAttachment(MessageAttachment attachment, BuildContext context) {
+    final fileService = serviceLocator.get<FileService>();
+    final imageUrl = fileService.getStreamUrl(attachment.filePath);
+
+    return GestureDetector(
+      onTap: () => showMediaViewer(context, attachment, 'image'),
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 200, maxWidth: 250),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Container(
+              height: 100,
+              color: Colors.grey[300],
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+            errorWidget: (context, url, error) => Container(
               height: 100,
               decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.broken_image),
-            );
-          },
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.broken_image, size: 32),
+                    SizedBox(height: 4),
+                    Text('فشل في تحميل الصورة', style: TextStyle(fontSize: 10)),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildVideoAttachment(attachment) {
-    return Container(
-      height: 120,
-      decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8)),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildVideoAttachment(MessageAttachment attachment, BuildContext context) {
+    return GestureDetector(
+      onTap: () => showMediaViewer(context, attachment, 'video'),
+      child: Container(
+        height: 120,
+        width: 200,
+        decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8)),
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            const Icon(Icons.play_circle_filled, size: 40),
-            const SizedBox(height: 8),
-            Text('فيديو (${_formatFileSize(attachment.fileSize)})', style: const TextStyle(fontSize: 12)),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.play_circle_filled, size: 40, color: Colors.blue),
+                const SizedBox(height: 8),
+                Text('فيديو (${_formatFileSize(attachment.fileSize)})', style: const TextStyle(fontSize: 12)),
+                Text(
+                  attachment.filePath.split('/').last,
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAudioAttachment(attachment) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.audiotrack),
-          const SizedBox(width: 8),
-          Text('صوت (${_formatFileSize(attachment.fileSize)})', style: const TextStyle(fontSize: 12)),
-        ],
+  Widget _buildAudioAttachment(MessageAttachment attachment, BuildContext context) {
+    return GestureDetector(
+      onTap: () => showMediaViewer(context, attachment, 'audio'),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.audiotrack, color: Colors.blue),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('ملف صوتي (${_formatFileSize(attachment.fileSize)})',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                  Text(
+                    attachment.filePath.split('/').last,
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildFileAttachment(attachment) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.attach_file),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  attachment.filePath.split('/').last,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(_formatFileSize(attachment.fileSize), style: const TextStyle(fontSize: 10, color: Colors.grey)),
-              ],
+  Widget _buildFileAttachment(MessageAttachment attachment, BuildContext context) {
+    return GestureDetector(
+      onTap: () => showMediaViewer(context, attachment, 'file'),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(_getFileIcon(attachment.filePath), color: Colors.blue),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    attachment.filePath.split('/').last,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(_formatFileSize(attachment.fileSize), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            const Icon(Icons.download, size: 16, color: Colors.grey),
+          ],
+        ),
       ),
     );
+  }
+
+  IconData _getFileIcon(String filePath) {
+    final extension = filePath.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'doc':
+      case 'docx':
+        return Icons.description;
+      case 'txt':
+        return Icons.text_snippet;
+      case 'zip':
+      case 'rar':
+      case '7z':
+        return Icons.archive;
+      default:
+        return Icons.attach_file;
+    }
   }
 
   String _formatFileSize(int bytes) {
     if (bytes < 1024) return '$bytes بايت';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} كيلوبايت';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} ميجابايت';
-  }
-}
-
-// Fix for ClipRRectangle (should be ClipRRect)
-class ClipRRectangle extends StatelessWidget {
-  final BorderRadius borderRadius;
-  final Widget child;
-
-  const ClipRRectangle({super.key, required this.borderRadius, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(borderRadius: borderRadius, child: child);
   }
 }

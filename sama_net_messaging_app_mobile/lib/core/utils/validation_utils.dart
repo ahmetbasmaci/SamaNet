@@ -44,6 +44,16 @@ class ValidationUtils {
     return password.length >= 3;
   }
 
+  /// Validate username format
+  static bool isValidUsername(String username) {
+    if (username.isEmpty) return false;
+    if (username.length < 3) return false;
+
+    // Allow letters, numbers, underscore, and Arabic characters
+    final usernameRegex = RegExp(r'^[a-zA-Z0-9_\u0600-\u06FF]+$');
+    return usernameRegex.hasMatch(username);
+  }
+
   /// Validate that field is not empty
   static bool isNotEmpty(String value) {
     return value.trim().isNotEmpty;
@@ -74,10 +84,24 @@ class ValidationUtils {
   /// Get password validation error message
   static String? validatePassword(String? value) {
     if (value == null || value.isEmpty) {
-      return ArabicStrings.passwordRequired;
+      return ArabicStrings.emptyPassword;
     }
     if (!isValidPassword(value)) {
-      return ArabicStrings.passwordTooShort;
+      return ArabicStrings.passwordMinLength;
+    }
+    return null;
+  }
+
+  /// Get username validation error message
+  static String? validateUsername(String? value) {
+    if (value == null || value.isEmpty) {
+      return ArabicStrings.emptyUsername;
+    }
+    if (value.length < 3) {
+      return ArabicStrings.usernameMinLength;
+    }
+    if (!isValidUsername(value)) {
+      return ArabicStrings.invalidUsernameFormat;
     }
     return null;
   }
