@@ -208,32 +208,26 @@ class _MessagesPageState extends State<MessagesPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final statusText = widget.chatUser.isOnline
+        ? 'متصل الآن'
+        : widget.chatUser.lastSeen != null
+            ? 'آخر ظهور: ${DateTimeUtils.formatChatListTime(widget.chatUser.lastSeen!)}'
+            : 'غير متصل';
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(
+        titleSpacing: 0,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: theme.colorScheme.primary,
-              child: Text(
-                widget.chatUser.initials,
-                style: TextStyle(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold),
-              ),
+            Text(
+              widget.chatUser.name,
+              style: theme.textTheme.titleMedium,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(widget.chatUser.name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                  Text(
-                    widget.chatUser.isOnline ? ArabicStrings.online : ArabicStrings.offline,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: widget.chatUser.isOnline ? Colors.green : theme.colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                  ),
-                ],
+            Text(
+              statusText,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onPrimary.withOpacity(0.7),
               ),
             ),
           ],
@@ -262,9 +256,9 @@ class _MessagesPageState extends State<MessagesPage> {
                   break;
               }
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'clear', child: Text(ArabicStrings.delete)),
-              const PopupMenuItem(value: 'block', child: Text('حظر المستخدم')),
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'clear', child: Text(ArabicStrings.delete)),
+              PopupMenuItem(value: 'block', child: Text('حظر المستخدم')),
             ],
           ),
         ],
@@ -743,42 +737,26 @@ class _MessagesPageState extends State<MessagesPage> {
     setState(() => _isUploadingFile = true);
 
     try {
-      // Upload file first
-      final uploadResponse = await _fileService.uploadFile(
-        filePath: filePath,
+      final messageResponse = await _messageService.sendMessageWithAttachment(
+        receiverId: widget.chatUser.id,
+        content: _getFileDescription(filePath, messageType),
         messageType: messageType,
+        filePath: filePath,
       );
 
-      if (uploadResponse.isSuccess && uploadResponse.data != null) {
-        final uploadData = uploadResponse.data!;
+      if (messageResponse.isSuccess && messageResponse.data != null) {
+        setState(() {
+          _messages.add(messageResponse.data!);
+        });
 
-        // Send message with attachment
-        final messageResponse = await _messageService.sendMessageWithAttachment(
-          receiverId: widget.chatUser.id,
-          content: _getFileDescription(filePath, messageType),
-          messageType: messageType,
-          filePath: uploadData.filePath ?? filePath,
-        );
-
-        if (messageResponse.isSuccess && messageResponse.data != null) {
-          // Add message to local list
-          setState(() {
-            _messages.add(messageResponse.data!);
-          });
-
-          // Scroll to bottom
-          _scrollToBottom();
-
-          // Notify that conversations need to be updated
-          _updateNotifier.notifyConversationUpdate();
-        } else {
-          _showErrorSnackBar('فشل في إرسال الرسالة');
-        }
+        _scrollToBottom();
+        _updateNotifier.notifyConversationUpdate();
       } else {
-        _showErrorSnackBar('فشل في رفع الملف: ${uploadResponse.error}');
+        _showErrorSnackBar('فشل في إرسال الرسالة: ${messageResponse.error ?? ''}');
       }
-    } catch (e) {
-      debugPrint('[MessagesPage::_uploadAndSendFile] $e');
+    } catch (e, stackTrace) {
+      debugPrint('Error sending file message: $e');
+      debugPrintStack(stackTrace: stackTrace);
       _showErrorSnackBar('خطأ في إرسال الملف: ${e.toString()}');
     } finally {
       setState(() => _isUploadingFile = false);
