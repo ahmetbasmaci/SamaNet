@@ -135,7 +135,7 @@ namespace SamaNetMessaegingAppApi.Controllers
 
             try
             {
-                var isValidType = _fileService.IsValidFileType(request.File.ContentType, request.MessageType.ToLower());
+                var isValidType = _fileService.IsValidFileType(request.File.ContentType, request.MessageType.ToLower(), request.File.FileName);
                 var isValidSize = _fileService.IsValidFileSize(request.File.Length);
 
                 var validation = new

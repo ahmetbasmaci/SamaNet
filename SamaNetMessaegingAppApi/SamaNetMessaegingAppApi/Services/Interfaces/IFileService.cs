@@ -9,8 +9,8 @@ namespace SamaNetMessaegingAppApi.Services.Interfaces
     {
         Task<FileUploadResponseDto> SaveFileAsync(IFormFile file, string messageType);
         Task<bool> DeleteFileAsync(string filePath);
-        Task<(byte[] content, string contentType, string fileName)> GetFileAsync(string filePath);
-        bool IsValidFileType(string fileType, string messageType);
+    Task<(byte[] content, string contentType, string fileName)> GetFileAsync(string filePath);
+    bool IsValidFileType(string fileType, string messageType, string fileName);
         bool IsValidFileSize(long fileSize);
     }
 }

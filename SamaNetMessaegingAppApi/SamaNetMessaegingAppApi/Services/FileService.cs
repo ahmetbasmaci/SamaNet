@@ -12,10 +12,56 @@ namespace SamaNetMessaegingAppApi.Services
         private readonly long _maxFileSize = 200 * 1024 * 1024; // 200MB
         private readonly Dictionary<string, List<string>> _allowedFileTypes = new()
         {
-            ["image"] = new() { "image/jpeg", "image/png", "image/gif", "image/webp" },
-            ["video"] = new() { "video/mp4", "video/avi", "video/mov", "video/wmv" },
-            ["audio"] = new() { "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp3" },
-            ["file"] = new() { "application/pdf", "application/doc", "application/docx", "text/plain" }
+            ["image"] = new()
+            {
+                "image/jpeg",
+                "image/jpg",
+                "image/png",
+                "image/gif",
+                "image/webp",
+                "image/bmp",
+                "image/heic",
+                "image/heif",
+                "image/pjpeg"
+            },
+            ["video"] = new()
+            {
+                "video/mp4",
+                "video/avi",
+                "video/mov",
+                "video/quicktime",
+                "video/wmv",
+                "video/x-ms-wmv",
+                "video/x-matroska",
+                "video/x-flv",
+                "video/webm"
+            },
+            ["audio"] = new()
+            {
+                "audio/mpeg",
+                "audio/wav",
+                "audio/ogg",
+                "audio/mp3",
+                "audio/aac",
+                "audio/flac",
+                "audio/mp4",
+                "audio/x-m4a"
+            },
+            ["file"] = new()
+            {
+                "application/pdf",
+                "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/rtf",
+                "text/plain"
+            }
+        };
+        private readonly Dictionary<string, List<string>> _allowedFileExtensions = new()
+        {
+            ["image"] = new() { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic", ".heif" },
+            ["video"] = new() { ".mp4", ".avi", ".mov", ".wmv", ".mkv", ".flv", ".webm" },
+            ["audio"] = new() { ".mp3", ".wav", ".aac", ".ogg", ".flac", ".m4a" },
+            ["file"] = new() { ".pdf", ".doc", ".docx", ".txt", ".rtf" }
         };
 
         public FileService(IWebHostEnvironment environment)
@@ -27,6 +73,8 @@ namespace SamaNetMessaegingAppApi.Services
         {
             try
             {
+                var normalizedMessageType = messageType.ToLowerInvariant();
+
                 if (file == null || file.Length == 0)
                 {
                     return new FileUploadResponseDto
@@ -45,17 +93,17 @@ namespace SamaNetMessaegingAppApi.Services
                     };
                 }
 
-                if (!IsValidFileType(file.ContentType, messageType))
+                if (!IsValidFileType(file.ContentType, normalizedMessageType, file.FileName))
                 {
                     return new FileUploadResponseDto
                     {
                         Success = false,
-                        Message = $"Invalid file type for {messageType} message"
+                        Message = $"Invalid file type for {normalizedMessageType} message"
                     };
                 }
 
                 // Create uploads directory if it doesn't exist
-                var uploadsPath = Path.Combine(_environment.ContentRootPath, "uploads", messageType);
+                var uploadsPath = Path.Combine(_environment.ContentRootPath, "uploads", normalizedMessageType);
                 Directory.CreateDirectory(uploadsPath);
 
                 // Generate unique filename
@@ -70,7 +118,7 @@ namespace SamaNetMessaegingAppApi.Services
                 }
 
                 // Return relative path for storage in database
-                var relativePath = Path.Combine("uploads", messageType, fileName).Replace("\\", "/");
+                var relativePath = Path.Combine("uploads", normalizedMessageType, fileName).Replace("\\", "/");
 
                 return new FileUploadResponseDto
                 {
@@ -91,7 +139,7 @@ namespace SamaNetMessaegingAppApi.Services
             }
         }
 
-        public async Task<bool> DeleteFileAsync(string filePath)
+        public Task<bool> DeleteFileAsync(string filePath)
         {
             try
             {
@@ -99,13 +147,13 @@ namespace SamaNetMessaegingAppApi.Services
                 if (File.Exists(fullPath))
                 {
                     File.Delete(fullPath);
-                    return true;
+                    return Task.FromResult(true);
                 }
-                return false;
+                return Task.FromResult(false);
             }
             catch
             {
-                return false;
+                return Task.FromResult(false);
             }
         }
 
@@ -125,12 +173,35 @@ namespace SamaNetMessaegingAppApi.Services
             return (content, contentType, fileName);
         }
 
-        public bool IsValidFileType(string fileType, string messageType)
+        public bool IsValidFileType(string fileType, string messageType, string fileName)
         {
             if (!_allowedFileTypes.ContainsKey(messageType))
                 return false;
 
-            return _allowedFileTypes[messageType].Contains(fileType.ToLower());
+            var normalizedType = fileType?.ToLowerInvariant() ?? string.Empty;
+            if (!string.IsNullOrEmpty(normalizedType) && _allowedFileTypes[messageType].Contains(normalizedType))
+            {
+                return true;
+            }
+
+            var extension = Path.GetExtension(fileName)?.ToLowerInvariant() ?? string.Empty;
+            if (!string.IsNullOrEmpty(extension) &&
+                _allowedFileExtensions.TryGetValue(messageType, out var extensions) &&
+                extensions.Contains(extension))
+            {
+                return true;
+            }
+
+            if (string.IsNullOrEmpty(normalizedType) || normalizedType == "application/octet-stream")
+            {
+                var fallbackType = GetContentType(extension);
+                if (!string.IsNullOrEmpty(fallbackType) && _allowedFileTypes[messageType].Contains(fallbackType))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public bool IsValidFileSize(long fileSize)
@@ -145,11 +216,26 @@ namespace SamaNetMessaegingAppApi.Services
                 ".jpg" or ".jpeg" => "image/jpeg",
                 ".png" => "image/png",
                 ".gif" => "image/gif",
+                ".bmp" => "image/bmp",
+                ".webp" => "image/webp",
+                ".heic" or ".heif" => "image/heic",
                 ".mp4" => "video/mp4",
                 ".avi" => "video/avi",
+                ".mov" => "video/mov",
+                ".wmv" => "video/wmv",
+                ".mkv" => "video/x-matroska",
+                ".flv" => "video/x-flv",
+                ".webm" => "video/webm",
                 ".mp3" => "audio/mpeg",
                 ".wav" => "audio/wav",
+                ".aac" => "audio/aac",
+                ".ogg" => "audio/ogg",
+                ".flac" => "audio/flac",
+                ".m4a" => "audio/mp4",
                 ".pdf" => "application/pdf",
+                ".doc" => "application/msword",
+                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".rtf" => "application/rtf",
                 ".txt" => "text/plain",
                 _ => "application/octet-stream"
             };

@@ -10,7 +10,7 @@ class ApiClient {
   String? _userId;
 
   ApiClient({required this.baseUrl, Map<String, String>? defaultHeaders})
-    : _defaultHeaders = {'Content-Type': 'application/json', 'Accept': 'application/json', ...?defaultHeaders};
+      : _defaultHeaders = {'Content-Type': 'application/json', 'Accept': 'application/json', ...?defaultHeaders};
 
   /// Set authentication token
   void setAuthToken(String? token) {
@@ -236,11 +236,13 @@ class ApiClient {
 
   /// Read response body
   Future<String> _readResponse(HttpClientResponse response) async {
-    final contents = StringBuffer();
-    await for (var data in response.transform(utf8.decoder)) {
-      contents.write(data);
+    final buffer = <int>[];
+    await response.forEach(buffer.addAll);
+    if (buffer.isEmpty) {
+      return '';
     }
-    return contents.toString();
+
+    return utf8.decode(buffer);
   }
 
   /// Handle HTTP response
@@ -287,6 +289,7 @@ class ApiResponse<T> {
 
   /// Create error response
   factory ApiResponse.error(String error) {
+    debugPrint('API Error: $error');
     return ApiResponse._(error: error, isSuccess: false);
   }
 
