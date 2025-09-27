@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sama_net_messaging_app_mobile/data/services/message_service.dart';
@@ -606,7 +608,7 @@ class _MessagesPageState extends State<MessagesPage> {
       );
 
       if (image != null) {
-        await _uploadAndSendFile(image.path, 'image');
+        await _promptForCaptionAndSend(image.path, 'image');
       }
     } catch (e) {
       debugPrint('[MessagesPage::_pickImageFromCamera] $e');
@@ -632,7 +634,7 @@ class _MessagesPageState extends State<MessagesPage> {
       );
 
       if (image != null) {
-        await _uploadAndSendFile(image.path, 'image');
+        await _promptForCaptionAndSend(image.path, 'image');
       }
     } catch (e) {
       debugPrint('[MessagesPage::_pickImageFromGallery] $e');
@@ -730,8 +732,90 @@ class _MessagesPageState extends State<MessagesPage> {
     }
   }
 
+  /// Prompt user for caption before sending an image
+  Future<void> _promptForCaptionAndSend(String filePath, String messageType) async {
+    if (!mounted) return;
+
+    String captionText = '';
+
+    final caption = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: StatefulBuilder(
+                builder: (context, setSheetState) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          File(filePath),
+                          height: 220,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            height: 220,
+                            color: Colors.grey.shade200,
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.broken_image, size: 48),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        maxLines: 3,
+                        onChanged: (value) => setSheetState(() => captionText = value),
+                        decoration: const InputDecoration(
+                          labelText: 'أضف وصفًا (اختياري)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(sheetContext).pop(),
+                              child: const Text(ArabicStrings.cancel),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.of(sheetContext).pop(captionText.trim()),
+                              child: const Text(ArabicStrings.send),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (caption == null || !mounted) {
+      return; // User cancelled.
+    }
+
+    await _uploadAndSendFile(filePath, messageType, caption: caption);
+  }
+
   /// Upload file and send message
-  Future<void> _uploadAndSendFile(String filePath, String messageType) async {
+  Future<void> _uploadAndSendFile(String filePath, String messageType, {String? caption}) async {
     if (_currentUser == null) return;
 
     setState(() => _isUploadingFile = true);
@@ -739,7 +823,7 @@ class _MessagesPageState extends State<MessagesPage> {
     try {
       final messageResponse = await _messageService.sendMessageWithAttachment(
         receiverId: widget.chatUser.id,
-        content: _getFileDescription(filePath, messageType),
+        content: _resolveAttachmentCaption(filePath, messageType, caption),
         messageType: messageType,
         filePath: filePath,
       );
@@ -761,6 +845,14 @@ class _MessagesPageState extends State<MessagesPage> {
     } finally {
       setState(() => _isUploadingFile = false);
     }
+  }
+
+  String _resolveAttachmentCaption(String filePath, String messageType, String? caption) {
+    final trimmed = caption?.trim() ?? '';
+    if (trimmed.isNotEmpty) {
+      return trimmed;
+    }
+    return _getFileDescription(filePath, messageType);
   }
 
   /// Get file description based on type

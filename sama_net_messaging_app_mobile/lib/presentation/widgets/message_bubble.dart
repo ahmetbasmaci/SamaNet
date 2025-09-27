@@ -58,6 +58,9 @@ class MessageBubble extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Attachments
+                    if (message.hasAttachment) ...[const SizedBox(height: 8), _buildAttachments(context)],
+
                     // Message content
                     if (message.content != null) ...[
                       Text(
@@ -65,10 +68,6 @@ class MessageBubble extends StatelessWidget {
                         style: TextStyle(color: isOwnMessage ? Colors.white : Colors.black87, fontSize: 16),
                       ),
                     ],
-
-                    // Attachments
-                    if (message.hasAttachment) ...[const SizedBox(height: 8), _buildAttachments(context)],
-
                     // Timestamp and status
                     const SizedBox(height: 6),
                     Row(
