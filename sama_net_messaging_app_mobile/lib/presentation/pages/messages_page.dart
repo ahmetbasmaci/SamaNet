@@ -600,7 +600,7 @@ class _MessagesPageState extends State<MessagesPage> {
       // Request camera permission
       final cameraStatus = await Permission.camera.request();
       if (!cameraStatus.isGranted) {
-        _showPermissionDeniedSnackBar('الكاميرا');
+        _showPermissionDeniedDialog('الكاميرا');
         return;
       }
 
@@ -615,6 +615,7 @@ class _MessagesPageState extends State<MessagesPage> {
         await _uploadAndSendFile(image.path, 'image');
       }
     } catch (e) {
+      debugPrint('[MessagesPage::_pickImageFromCamera] $e');
       _showErrorSnackBar('خطأ في التقاط الصورة: ${e.toString()}');
     }
   }
@@ -625,7 +626,7 @@ class _MessagesPageState extends State<MessagesPage> {
       // Request photo permission
       final photoStatus = await Permission.photos.request();
       if (!photoStatus.isGranted) {
-        _showPermissionDeniedSnackBar('المعرض');
+        _showPermissionDeniedDialog('المعرض');
         return;
       }
 
@@ -640,6 +641,7 @@ class _MessagesPageState extends State<MessagesPage> {
         await _uploadAndSendFile(image.path, 'image');
       }
     } catch (e) {
+      debugPrint('[MessagesPage::_pickImageFromGallery] $e');
       _showErrorSnackBar('خطأ في اختيار الصورة: ${e.toString()}');
     }
   }
@@ -650,7 +652,7 @@ class _MessagesPageState extends State<MessagesPage> {
       // Request camera permission
       final cameraStatus = await Permission.camera.request();
       if (!cameraStatus.isGranted) {
-        _showPermissionDeniedSnackBar('الكاميرا');
+        _showPermissionDeniedDialog('الكاميرا');
         return;
       }
 
@@ -663,6 +665,7 @@ class _MessagesPageState extends State<MessagesPage> {
         await _uploadAndSendFile(video.path, 'video');
       }
     } catch (e) {
+      debugPrint('[MessagesPage::_pickVideoFromCamera] $e');
       _showErrorSnackBar('خطأ في تسجيل الفيديو: ${e.toString()}');
     }
   }
@@ -673,7 +676,7 @@ class _MessagesPageState extends State<MessagesPage> {
       // Request photo permission
       final photoStatus = await Permission.photos.request();
       if (!photoStatus.isGranted) {
-        _showPermissionDeniedSnackBar('المعرض');
+        _showPermissionDeniedDialog('المعرض');
         return;
       }
 
@@ -686,6 +689,7 @@ class _MessagesPageState extends State<MessagesPage> {
         await _uploadAndSendFile(video.path, 'video');
       }
     } catch (e) {
+      debugPrint('[MessagesPage::_pickVideoFromGallery] $e');
       _showErrorSnackBar('خطأ في اختيار الفيديو: ${e.toString()}');
     }
   }
@@ -696,7 +700,7 @@ class _MessagesPageState extends State<MessagesPage> {
       // Request storage permission
       final storageStatus = await Permission.storage.request();
       if (!storageStatus.isGranted) {
-        _showPermissionDeniedSnackBar('التخزين');
+        _showPermissionDeniedDialog('التخزين');
         return;
       }
 
@@ -727,6 +731,7 @@ class _MessagesPageState extends State<MessagesPage> {
         await _uploadAndSendFile(filePath, messageType);
       }
     } catch (e) {
+      debugPrint('[MessagesPage::_pickFile] $e');
       _showErrorSnackBar('خطأ في اختيار الملف: ${e.toString()}');
     }
   }
@@ -773,6 +778,7 @@ class _MessagesPageState extends State<MessagesPage> {
         _showErrorSnackBar('فشل في رفع الملف: ${uploadResponse.error}');
       }
     } catch (e) {
+      debugPrint('[MessagesPage::_uploadAndSendFile] $e');
       _showErrorSnackBar('خطأ في إرسال الملف: ${e.toString()}');
     } finally {
       setState(() => _isUploadingFile = false);
@@ -794,17 +800,38 @@ class _MessagesPageState extends State<MessagesPage> {
     }
   }
 
-  /// Show permission denied snackbar
-  void _showPermissionDeniedSnackBar(String permissionType) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('لا يمكن الوصول إلى $permissionType. يرجى منح الإذن من الإعدادات.'),
-        backgroundColor: Colors.orange,
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'الإعدادات',
-          onPressed: () => openAppSettings(),
-        ),
+  /// Show permission denied dialog with shortcut to app settings
+  void _showPermissionDeniedDialog(String permissionType) {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('إذن مرفوض'),
+        content: Text('لا يمكن الوصول إلى $permissionType. يرجى منح الإذن من إعدادات التطبيق.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              final opened = await openAppSettings();
+
+              if (!opened && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('تعذر فتح إعدادات التطبيق.'),
+                    backgroundColor: Colors.red,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
+            },
+            child: const Text('فتح الإعدادات'),
+          ),
+        ],
       ),
     );
   }
