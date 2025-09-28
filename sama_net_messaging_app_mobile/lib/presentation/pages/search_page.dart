@@ -125,7 +125,7 @@ class _SearchPageState extends State<SearchPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(ArabicStrings.searchUsers), elevation: 0),
+      appBar: AppBar(title: const Text(ArabicStrings.searchUsers), elevation: 0),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -180,7 +180,6 @@ class _SearchPageState extends State<SearchPage> {
                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
-
               Expanded(child: _buildSearchResults(theme)),
             ] else ...[
               Expanded(
@@ -231,7 +230,7 @@ class _SearchPageState extends State<SearchPage> {
                   _hasSearched = false;
                 });
               },
-              child: Text(ArabicStrings.search),
+              child: const Text(ArabicStrings.search),
             ),
           ],
         ),
@@ -283,7 +282,7 @@ class _SearchPageState extends State<SearchPage> {
                 ),
               ],
             ),
-            trailing: ElevatedButton(onPressed: () => _startChat(user), child: Text(ArabicStrings.startChat)),
+            trailing: ElevatedButton(onPressed: () => _startChat(user), child: const Text(ArabicStrings.startChat)),
           ),
         );
       },
