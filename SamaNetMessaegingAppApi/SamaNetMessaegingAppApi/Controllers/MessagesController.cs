@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using SamaNetMessaegingAppApi.DTOs;
+using SamaNetMessaegingAppApi.Hubs;
 using SamaNetMessaegingAppApi.Services.Interfaces;
 
 namespace SamaNetMessaegingAppApi.Controllers
@@ -12,10 +14,12 @@ namespace SamaNetMessaegingAppApi.Controllers
     public class MessagesController : ControllerBase
     {
         private readonly IMessageService _messageService;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public MessagesController(IMessageService messageService)
+        public MessagesController(IMessageService messageService, IHubContext<ChatHub> hubContext)
         {
             _messageService = messageService;
+            _hubContext = hubContext;
         }
 
         /// <summary>
@@ -37,6 +41,7 @@ namespace SamaNetMessaegingAppApi.Controllers
             try
             {
                 var message = await _messageService.SendMessageAsync(senderId, request);
+                await BroadcastMessageAsync(message);
                 return Ok(message);
             }
             catch (ArgumentException ex)
@@ -77,6 +82,7 @@ namespace SamaNetMessaegingAppApi.Controllers
                 };
 
                 var message = await _messageService.SendMessageWithAttachmentAsync(senderId, messageRequest, request.File);
+                await BroadcastMessageAsync(message);
                 return Ok(message);
             }
             catch (ArgumentException ex)
@@ -148,6 +154,13 @@ namespace SamaNetMessaegingAppApi.Controllers
                     return NotFound("Message not found or access denied");
                 }
 
+                var message = await _messageService.GetMessageByIdAsync(messageId);
+                if (message != null)
+                {
+                    await _hubContext.Clients.Group(ChatHub.GetUserGroupName(message.SenderId))
+                        .SendAsync("MessageRead", new { MessageId = messageId, ReadAt = DateTime.UtcNow, ReadBy = userId });
+                }
+
                 return Ok();
             }
             catch (Exception ex)
@@ -174,6 +187,13 @@ namespace SamaNetMessaegingAppApi.Controllers
                 if (!success)
                 {
                     return NotFound("Message not found");
+                }
+
+                var message = await _messageService.GetMessageByIdAsync(messageId);
+                if (message != null)
+                {
+                    await _hubContext.Clients.Group(ChatHub.GetUserGroupName(message.SenderId))
+                        .SendAsync("MessageDelivered", new { MessageId = messageId, DeliveredAt = DateTime.UtcNow });
                 }
 
                 return Ok();
@@ -321,6 +341,21 @@ namespace SamaNetMessaegingAppApi.Controllers
                 },
                 note = "Most endpoints require X-User-Id header for authentication"
             });
+        }
+
+        private async Task BroadcastMessageAsync(MessageResponseDto message)
+        {
+            try
+            {
+                await Task.WhenAll(
+                    _hubContext.Clients.Group(ChatHub.GetUserGroupName(message.SenderId)).SendAsync("MessageSent", message),
+                    _hubContext.Clients.Group(ChatHub.GetUserGroupName(message.ReceiverId)).SendAsync("MessageReceived", message)
+                );
+            }
+            catch
+            {
+                // Swallow exceptions from realtime broadcasting to avoid impacting API responses.
+            }
         }
     }
 }

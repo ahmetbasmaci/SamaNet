@@ -1,11 +1,11 @@
 /// API endpoints and configuration
 class ApiConstants {
-  // Base URL - Update this to match your local API
-  static const String baseUrl = _baseUrlEmulator;
-  static const String _baseUrlEmulator = 'http://10.0.2.2:7073/api';
-  static const String _baseUrl = 'http://localhost:7073/api';
-  static const String _baseUrlRealDevice = 'http://172.24.224.1:7073/api';
-  // static const String _baseUrlRealDevice = 'http://192.168.1.106:7073/api';
+  // Base server URL - Update this to match your local API
+  static const String baseServerUrl = 'http://10.0.2.2:7073'; // Android emulator default
+  // static const String baseServerUrl = 'http://localhost:7073'; // Localhost (web/desktop)
+  // static const String baseServerUrl = 'http://172.24.224.1:7073'; // Real device / LAN
+  static const String chatHubUrl = '$baseServerUrl/chatHub';
+  static const String baseUrl = '$baseServerUrl/api';
 
   // User/Authentication endpoints
   static const String login = '/users/login';

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import '../../data/models/user.dart';
 import '../../data/services/local_storage_service.dart';
 import '../../data/services/message_status_service.dart';
 import '../../data/services/file_service.dart';
+import '../../data/services/realtime_chat_service.dart';
 import '../widgets/message_bubble.dart';
 import '../../core/di/service_locator.dart';
 import '../../core/services/conversation_update_notifier.dart';
@@ -35,6 +37,11 @@ class _MessagesPageState extends State<MessagesPage> {
   late MessageStatusService _messageStatusService;
   late FileService _fileService;
   late ConversationUpdateNotifier _updateNotifier;
+  late RealtimeChatService _realtimeChatService;
+  StreamSubscription<Message>? _messageReceivedSubscription;
+  StreamSubscription<Message>? _messageSentSubscription;
+  StreamSubscription<MessageDeliveryUpdate>? _messageDeliveredSubscription;
+  StreamSubscription<MessageReadUpdate>? _messageReadSubscription;
   final ImagePicker _imagePicker = ImagePicker();
   List<Message> _messages = [];
   bool _isLoading = true;
@@ -46,8 +53,13 @@ class _MessagesPageState extends State<MessagesPage> {
   void initState() {
     super.initState();
     _initializeServices();
-    _loadCurrentUser();
-    _loadMessages();
+    _initPage();
+  }
+
+  Future<void> _initPage() async {
+    await _loadCurrentUser();
+    await _loadMessages();
+    await _initializeRealtime();
   }
 
   void _initializeServices() {
@@ -56,12 +68,14 @@ class _MessagesPageState extends State<MessagesPage> {
     _messageStatusService = serviceLocator.get<MessageStatusService>();
     _fileService = serviceLocator.get<FileService>();
     _updateNotifier = serviceLocator.get<ConversationUpdateNotifier>();
+    _realtimeChatService = serviceLocator.get<RealtimeChatService>();
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _disposeRealtimeListeners();
     // Notify conversations to update when leaving this page
     _updateNotifier.notifyConversationUpdate();
     super.dispose();
@@ -72,9 +86,14 @@ class _MessagesPageState extends State<MessagesPage> {
       // Load cached user data instead of just user ID
       final cachedUser = await _localStorage.getCurrentUser();
       if (cachedUser != null) {
-        setState(() {
+        if (mounted) {
+          setState(() {
+            _currentUser = cachedUser;
+          });
+        } else {
           _currentUser = cachedUser;
-        });
+        }
+        _realtimeChatService.configureForUser(cachedUser.id);
       }
     } catch (e) {
       print('Error loading current user: $e');
@@ -92,6 +111,8 @@ class _MessagesPageState extends State<MessagesPage> {
       final response = await _messageService.getConversation(otherUserId: widget.chatUser.id);
       if (response.isSuccess && response.data != null) {
         List<Message> messages = response.data!;
+
+        messages.sort((a, b) => a.sentAt.compareTo(b.sentAt));
 
         // Apply local status updates from cache
         for (int i = 0; i < messages.length; i++) {
@@ -121,6 +142,150 @@ class _MessagesPageState extends State<MessagesPage> {
     }
   }
 
+  Future<void> _initializeRealtime() async {
+    if (_currentUser == null) return;
+
+    try {
+      await _realtimeChatService.connect(userId: _currentUser!.id);
+      _registerRealtimeListeners();
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('Failed to initialize realtime connection: $e');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    }
+  }
+
+  void _registerRealtimeListeners() {
+    _messageReceivedSubscription?.cancel();
+    _messageSentSubscription?.cancel();
+    _messageDeliveredSubscription?.cancel();
+    _messageReadSubscription?.cancel();
+
+    _messageReceivedSubscription = _realtimeChatService.onMessageReceived.listen(_handleRealtimeMessageReceived);
+    _messageSentSubscription = _realtimeChatService.onMessageSent.listen(_handleRealtimeMessageSent);
+    _messageDeliveredSubscription = _realtimeChatService.onMessageDelivered.listen(_handleMessageDelivered);
+    _messageReadSubscription = _realtimeChatService.onMessageRead.listen(_handleMessageRead);
+  }
+
+  void _disposeRealtimeListeners() {
+    _messageReceivedSubscription?.cancel();
+    _messageSentSubscription?.cancel();
+    _messageDeliveredSubscription?.cancel();
+    _messageReadSubscription?.cancel();
+
+    _messageReceivedSubscription = null;
+    _messageSentSubscription = null;
+    _messageDeliveredSubscription = null;
+    _messageReadSubscription = null;
+  }
+
+  void _handleRealtimeMessageReceived(Message message) {
+    if (_currentUser == null) return;
+
+    final isCurrentConversation = message.senderId == widget.chatUser.id && message.receiverId == _currentUser!.id;
+
+    if (!isCurrentConversation) {
+      // Notify other parts of the app (e.g., conversation list) to refresh
+      _updateNotifier.notifyConversationUpdate();
+      return;
+    }
+
+    final existingIndex = _messages.indexWhere((m) => m.id == message.id);
+
+    if (!mounted) return;
+
+    if (existingIndex == -1) {
+      final updatedMessages = [..._messages, message]..sort((a, b) => a.sentAt.compareTo(b.sentAt));
+      setState(() {
+        _messages = updatedMessages;
+      });
+    } else {
+      setState(() {
+        _messages[existingIndex] = message;
+      });
+    }
+
+    _scrollToBottom();
+    _updateNotifier.notifyConversationUpdate();
+
+    unawaited(
+      _realtimeChatService.markMessageAsRead(message.id).catchError((error) {
+        if (kDebugMode) {
+          debugPrint('Failed to mark message as read via realtime: $error');
+        }
+      }),
+    );
+
+    unawaited(_messageStatusService.markAsRead(message.id));
+  }
+
+  void _handleRealtimeMessageSent(Message message) {
+    if (_currentUser == null) return;
+
+    final isFromCurrentUser = message.senderId == _currentUser!.id;
+    if (!isFromCurrentUser) {
+      return;
+    }
+
+    final isCurrentConversation = message.receiverId == widget.chatUser.id;
+    if (!isCurrentConversation) {
+      _updateNotifier.notifyConversationUpdate();
+      return;
+    }
+
+    final existingIndex = _messages.indexWhere((m) => m.id == message.id);
+
+    if (!mounted) return;
+
+    if (existingIndex == -1) {
+      final updatedMessages = [..._messages, message]..sort((a, b) => a.sentAt.compareTo(b.sentAt));
+      setState(() {
+        _messages = updatedMessages;
+      });
+    } else {
+      setState(() {
+        _messages[existingIndex] = message;
+      });
+    }
+
+    _scrollToBottom();
+    _updateNotifier.notifyConversationUpdate();
+  }
+
+  void _handleMessageDelivered(MessageDeliveryUpdate update) {
+    final index = _messages.indexWhere((message) => message.id == update.messageId);
+    if (index == -1 || !mounted) return;
+
+    final existing = _messages[index];
+    if (existing.deliveredAt != null && existing.deliveredAt!.isAfter(update.deliveredAt)) {
+      return;
+    }
+
+    setState(() {
+      _messages[index] = existing.copyWith(deliveredAt: update.deliveredAt);
+    });
+  }
+
+  void _handleMessageRead(MessageReadUpdate update) {
+    final index = _messages.indexWhere((message) => message.id == update.messageId);
+    if (index == -1 || !mounted) return;
+
+    final existing = _messages[index];
+    if (_currentUser != null && existing.senderId != _currentUser!.id) {
+      return;
+    }
+
+    setState(() {
+      _messages[index] = existing.copyWith(
+        readAt: update.readAt,
+        deliveredAt: existing.deliveredAt ?? update.readAt,
+      );
+    });
+
+    _updateNotifier.notifyConversationUpdate();
+  }
+
   /// Mark all incoming unread messages as read
   Future<void> _markIncomingMessagesAsRead() async {
     if (_currentUser == null) return;
@@ -138,6 +303,18 @@ class _MessagesPageState extends State<MessagesPage> {
 
         // Notify that conversations need to be updated (unread count changed)
         _updateNotifier.notifyConversationUpdate();
+
+        if (_realtimeChatService.isConnected) {
+          for (final messageId in markedIds) {
+            unawaited(
+              _realtimeChatService.markMessageAsRead(messageId).catchError((error) {
+                if (kDebugMode) {
+                  debugPrint('Failed to notify read status via realtime: $error');
+                }
+              }),
+            );
+          }
+        }
       }
     } catch (e) {
       print('Error marking messages as read: $e');
@@ -156,6 +333,22 @@ class _MessagesPageState extends State<MessagesPage> {
     });
   }
 
+  Future<void> _ensureRealtimeConnection() async {
+    if (_currentUser == null) {
+      await _loadCurrentUser();
+    }
+
+    if (_currentUser == null) {
+      throw StateError('Cannot establish realtime connection without current user');
+    }
+
+    if (_realtimeChatService.isConnected) {
+      return;
+    }
+
+    await _realtimeChatService.connect(userId: _currentUser!.id);
+  }
+
   Future<void> _sendMessage() async {
     final messageText = _messageController.text.trim();
     if (messageText.isEmpty || _isSending) return;
@@ -164,41 +357,34 @@ class _MessagesPageState extends State<MessagesPage> {
     _messageController.clear();
 
     try {
-      // Create new message
-      final newMessage = Message(
-        id: DateTime.now().millisecondsSinceEpoch, // Temporary ID
-        senderId: _currentUser?.id ?? 1,
+      await _ensureRealtimeConnection();
+      await _realtimeChatService.sendTextMessage(
         receiverId: widget.chatUser.id,
-        messageType: 'text',
         content: messageText,
-        sentAt: DateTime.now(),
       );
-
-      // Add message to list immediately (optimistic update)
-      setState(() {
-        _messages.add(newMessage);
-      });
-
-      _scrollToBottom();
-
-      // In real app, send to API:
-      await _messageService.sendMessage(receiverId: widget.chatUser.id, content: newMessage.content ?? "");
-
-      if (mounted) {
-        setState(() {
-          final index = _messages.indexWhere((m) => m.id == newMessage.id);
-          if (index != -1) {
-            _messages[index] = newMessage.copyWith(deliveredAt: DateTime.now());
-          }
-        });
-
-        // Notify that conversations need to be updated (new message sent)
-        _updateNotifier.notifyConversationUpdate();
-      }
     } catch (e) {
-      // Handle error - maybe show a retry option
       if (kDebugMode) {
-        print('Error sending message: $e');
+        debugPrint('Realtime send failed, attempting fallback: $e');
+      }
+
+      final fallbackResponse = await _messageService.sendMessage(receiverId: widget.chatUser.id, content: messageText);
+
+      if (fallbackResponse.isSuccess && fallbackResponse.data != null) {
+        if (mounted) {
+          setState(() {
+            final updatedMessages = [..._messages, fallbackResponse.data!]
+              ..sort((a, b) => a.sentAt.compareTo(b.sentAt));
+            _messages = updatedMessages;
+          });
+          _scrollToBottom();
+        }
+
+        _updateNotifier.notifyConversationUpdate();
+      } else {
+        if (mounted) {
+          _messageController.text = messageText;
+          _showErrorSnackBar('خطأ في إرسال الرسالة: ${fallbackResponse.error ?? e.toString()}');
+        }
       }
     } finally {
       if (mounted) {
@@ -821,6 +1007,14 @@ class _MessagesPageState extends State<MessagesPage> {
     setState(() => _isUploadingFile = true);
 
     try {
+      try {
+        await _ensureRealtimeConnection();
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('Continuing without realtime connection for attachment: $e');
+        }
+      }
+
       final messageResponse = await _messageService.sendMessageWithAttachment(
         receiverId: widget.chatUser.id,
         content: _resolveAttachmentCaption(filePath, messageType, caption),

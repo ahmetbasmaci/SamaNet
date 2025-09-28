@@ -14,6 +14,8 @@ namespace SamaNetMessaegingAppApi.Hubs
         private static readonly Dictionary<string, int> _connectionUserMap = new();
         private static readonly Dictionary<int, HashSet<string>> _userConnectionMap = new();
 
+        public static string GetUserGroupName(int userId) => $"user:{userId}";
+
         public ChatHub(IMessageService messageService, IUserService userService)
         {
             _messageService = messageService;
@@ -32,6 +34,8 @@ namespace SamaNetMessaegingAppApi.Hubs
                 _userConnectionMap[userId] = new HashSet<string>();
             }
             _userConnectionMap[userId].Add(Context.ConnectionId);
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, GetUserGroupName(userId));
 
             // Update user's last seen
             await _userService.UpdateLastSeenAsync(userId);
@@ -55,22 +59,21 @@ namespace SamaNetMessaegingAppApi.Hubs
 
                 var message = await _messageService.SendMessageAsync(senderId, messageRequest);
 
-                // Send to sender (confirmation)
-                await Clients.Caller.SendAsync("MessageSent", message);
+                // Send confirmation to sender group
+                await Clients.Group(GetUserGroupName(senderId)).SendAsync("MessageSent", message);
 
-                // Send to receiver if online
-                if (_userConnectionMap.TryGetValue(messageRequest.ReceiverId, out var receiverConnections))
+                // Broadcast to receiver group
+                await Clients.Group(GetUserGroupName(messageRequest.ReceiverId)).SendAsync("MessageReceived", message);
+
+                if (_userConnectionMap.TryGetValue(messageRequest.ReceiverId, out var receiverConnections) &&
+                    receiverConnections.Count > 0)
                 {
-                    foreach (var connectionId in receiverConnections)
-                    {
-                        await Clients.Client(connectionId).SendAsync("MessageReceived", message);
-                    }
-
                     // Mark as delivered since receiver is online
                     await _messageService.MarkMessageAsDeliveredAsync(message.Id);
-                    
+
                     // Notify sender about delivery
-                    await Clients.Caller.SendAsync("MessageDelivered", new { MessageId = message.Id, DeliveredAt = DateTime.UtcNow });
+                    await Clients.Group(GetUserGroupName(senderId))
+                        .SendAsync("MessageDelivered", new { MessageId = message.Id, DeliveredAt = DateTime.UtcNow });
                 }
             }
             catch (Exception ex)
@@ -98,14 +101,8 @@ namespace SamaNetMessaegingAppApi.Hubs
                     var message = await _messageService.GetMessageByIdAsync(messageId);
                     if (message != null)
                     {
-                        // Notify sender that message was read
-                        if (_userConnectionMap.TryGetValue(message.SenderId, out var senderConnections))
-                        {
-                            foreach (var connectionId in senderConnections)
-                            {
-                                await Clients.Client(connectionId).SendAsync("MessageRead", new { MessageId = messageId, ReadAt = DateTime.UtcNow, ReadBy = userId });
-                            }
-                        }
+                        await Clients.Group(GetUserGroupName(message.SenderId))
+                            .SendAsync("MessageRead", new { MessageId = messageId, ReadAt = DateTime.UtcNow, ReadBy = userId });
                     }
                 }
             }
@@ -123,13 +120,7 @@ namespace SamaNetMessaegingAppApi.Hubs
             if (!_connectionUserMap.TryGetValue(Context.ConnectionId, out var senderId))
                 return;
 
-            if (_userConnectionMap.TryGetValue(receiverId, out var receiverConnections))
-            {
-                foreach (var connectionId in receiverConnections)
-                {
-                    await Clients.Client(connectionId).SendAsync("UserStartedTyping", senderId);
-                }
-            }
+            await Clients.Group(GetUserGroupName(receiverId)).SendAsync("UserStartedTyping", senderId);
         }
 
         /// <summary>
@@ -140,13 +131,7 @@ namespace SamaNetMessaegingAppApi.Hubs
             if (!_connectionUserMap.TryGetValue(Context.ConnectionId, out var senderId))
                 return;
 
-            if (_userConnectionMap.TryGetValue(receiverId, out var receiverConnections))
-            {
-                foreach (var connectionId in receiverConnections)
-                {
-                    await Clients.Client(connectionId).SendAsync("UserStoppedTyping", senderId);
-                }
-            }
+            await Clients.Group(GetUserGroupName(receiverId)).SendAsync("UserStoppedTyping", senderId);
         }
 
         /// <summary>
@@ -161,6 +146,7 @@ namespace SamaNetMessaegingAppApi.Hubs
                 if (_userConnectionMap.TryGetValue(userId, out var connections))
                 {
                     connections.Remove(Context.ConnectionId);
+                    await Groups.RemoveFromGroupAsync(Context.ConnectionId, GetUserGroupName(userId));
                     
                     // If user has no more connections, mark as offline
                     if (connections.Count == 0)

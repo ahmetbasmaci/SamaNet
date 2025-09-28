@@ -6,6 +6,7 @@ import '../../data/services/user_service.dart';
 import '../../data/services/file_service.dart';
 import '../../data/services/chat_service.dart';
 import '../../data/services/message_status_service.dart';
+import '../../data/services/realtime_chat_service.dart';
 import '../../presentation/blocs/auth_bloc.dart';
 import '../constants/app_constants.dart';
 import '../services/conversation_update_notifier.dart';
@@ -66,6 +67,8 @@ Future<void> initializeDependencies() async {
 
   serviceLocator.registerSingleton<ApiClient>(ApiClient(baseUrl: ApiConstants.baseUrl));
 
+  serviceLocator.registerSingleton<RealtimeChatService>(RealtimeChatService());
+
   // Conversation update notifier
   serviceLocator.registerSingleton<ConversationUpdateNotifier>(ConversationUpdateNotifier());
 
@@ -114,7 +117,9 @@ Future<void> _initializeCoreServices() async {
   }
 
   if (userId != null) {
-    apiClient.setUserId(userId);
+    apiClient.setUserId(userId.toString());
+    final realtime = serviceLocator.get<RealtimeChatService>();
+    realtime.configureForUser(userId);
   }
 }
 
