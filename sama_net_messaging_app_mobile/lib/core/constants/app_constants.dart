@@ -1,12 +1,18 @@
+import 'package:flutter/foundation.dart';
+
 /// API endpoints and configuration
 class ApiConstants {
-  // Base server URL - Update this to match your local API
-  static const String baseServerUrl = 'http://10.0.2.2:7073'; // Android emulator default
+  ApiConstants._();
 
-   static const String baseServerUrlRealDevice = 'http://192.168.1.99:7073'; // Real device / LAN
-   static const String baseServerUrlEmulator = 'http://10.0.2.2:7073'; // Emulator / LAN
-  static const String chatHubUrl = '$baseServerUrl/chatHub';
-  static const String baseUrl = '$baseServerUrl/api';
+  // Base server URL - Update this to match your local API
+  static String baseServerUrl =
+      kDebugMode ? baseServerUrlEmulator : baseServerUrlRealDevice; // Android emulator default
+  static void updateBaseServerUrl(String newUrl) => baseServerUrl = newUrl;
+
+  static const String baseServerUrlRealDevice = 'http://192.168.1.99:7073'; // Real device / LAN
+  static const String baseServerUrlEmulator = 'http://10.0.2.2:7073'; // Emulator / LAN
+  static String get chatHubUrl => '$baseServerUrl/chatHub';
+  static String get baseUrl => '$baseServerUrl/api';
 
   // User/Authentication endpoints
   static const String login = '/users/login';
@@ -53,6 +59,7 @@ class ApiConstants {
 
 /// App-wide constants
 class AppConstants {
+  AppConstants._();
   // Storage keys
   static const String authTokenKey = 'auth_token';
   static const String refreshTokenKey = 'refresh_token';

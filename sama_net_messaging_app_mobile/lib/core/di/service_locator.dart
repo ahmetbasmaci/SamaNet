@@ -130,3 +130,42 @@ Future<void> _initializeCoreServices() async {
 Future<void> resetDependencies() async {
   serviceLocator.reset();
 }
+
+/// Update API base server URL and refresh dependent services without recreating blocs
+Future<void> updateApiServerUrl(String newBaseServerUrl) async {
+  final normalizedUrl = _normalizeBaseServerUrl(newBaseServerUrl);
+  ApiConstants.updateBaseServerUrl(normalizedUrl);
+
+  if (serviceLocator.isRegistered<ApiClient>()) {
+    final apiClient = serviceLocator.get<ApiClient>();
+    apiClient.updateBaseUrl(ApiConstants.baseUrl);
+  } else {
+    serviceLocator.registerSingleton<ApiClient>(ApiClient(baseUrl: ApiConstants.baseUrl));
+  }
+
+  if (serviceLocator.isRegistered<RealtimeChatService>()) {
+    try {
+      await serviceLocator.get<RealtimeChatService>().disconnect();
+    } catch (_) {
+      // Ignore disconnect errors; connection will be re-established lazily when needed
+    }
+  }
+}
+
+String _normalizeBaseServerUrl(String url) {
+  var normalized = url.trim();
+
+  if (normalized.isEmpty) {
+    return ApiConstants.baseServerUrl;
+  }
+
+  if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+    normalized = 'http://$normalized';
+  }
+
+  while (normalized.endsWith('/')) {
+    normalized = normalized.substring(0, normalized.length - 1);
+  }
+
+  return normalized;
+}

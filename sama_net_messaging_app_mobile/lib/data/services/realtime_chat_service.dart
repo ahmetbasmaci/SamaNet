@@ -77,9 +77,8 @@ class RealtimeChatService {
       }
 
       _currentUserId = userId;
-      const hubUrl = ApiConstants.chatHubUrl;
 
-      _connection = HubConnectionBuilder().withUrl(hubUrl).withAutomaticReconnect().build();
+      _connection = HubConnectionBuilder().withUrl(ApiConstants.chatHubUrl).withAutomaticReconnect().build();
 
       _registerHandlers();
 

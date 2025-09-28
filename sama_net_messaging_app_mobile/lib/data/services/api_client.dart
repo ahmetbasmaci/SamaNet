@@ -4,13 +4,20 @@ import 'package:flutter/foundation.dart';
 
 /// HTTP client wrapper for API communication
 class ApiClient {
-  final String baseUrl;
+  String _baseUrl;
   final Map<String, String> _defaultHeaders;
   String? _authToken;
   String? _userId;
 
-  ApiClient({required this.baseUrl, Map<String, String>? defaultHeaders})
-      : _defaultHeaders = {'Content-Type': 'application/json', 'Accept': 'application/json', ...?defaultHeaders};
+  ApiClient({required String baseUrl, Map<String, String>? defaultHeaders})
+      : _baseUrl = baseUrl,
+        _defaultHeaders = {'Content-Type': 'application/json', 'Accept': 'application/json', ...?defaultHeaders};
+
+  String get baseUrl => _baseUrl;
+
+  void updateBaseUrl(String newBaseUrl) {
+    _baseUrl = newBaseUrl;
+  }
 
   /// Set authentication token
   void setAuthToken(String? token) {
@@ -224,7 +231,7 @@ class ApiClient {
 
   /// Build URI with query parameters
   Uri _buildUri(String endpoint, Map<String, String>? queryParams) {
-    final url = '$baseUrl$endpoint';
+    final url = '$_baseUrl$endpoint';
     final uri = Uri.parse(url);
 
     if (queryParams != null && queryParams.isNotEmpty) {

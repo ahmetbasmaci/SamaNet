@@ -94,9 +94,11 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
       }
     } catch (e) {
       print('Error loading current user: $e');
-      setState(() {
+      if(mounted){
+        setState(() {
         _isLoading = false;
       });
+      }
     }
   }
 

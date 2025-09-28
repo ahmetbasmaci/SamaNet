@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sama_net_messaging_app_mobile/core/constants/app_constants.dart';
+import 'package:sama_net_messaging_app_mobile/core/di/service_locator.dart';
 import '../../core/utils/validation_utils.dart';
 import '../../core/constants/arabic_strings.dart';
 import '../blocs/auth_bloc.dart';
@@ -259,6 +261,55 @@ class _LoginPageState extends State<LoginPage> {
             },
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: const Icon(Icons.edit),
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (dialogContext) {
+              final apiUrlController = TextEditingController(text: ApiConstants.baseServerUrl);
+              return AlertDialog(
+                title: const Text('إعدادات الخادم'),
+                content: TextField(
+                  controller: apiUrlController,
+                  decoration: const InputDecoration(
+                    labelText: 'عنوان API المحلي',
+                    hintText: 'http://localhost:3000',
+                  ),
+                  keyboardType: TextInputType.url,
+                  textInputAction: TextInputAction.done,
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                    child: const Text('إلغاء'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final newUrl = apiUrlController.text.trim();
+                      await updateApiServerUrl(newUrl);
+
+                      if (!mounted) return;
+
+                      Navigator.of(dialogContext).pop();
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('تم تحديث عنوان الخادم إلى: ${ApiConstants.baseServerUrl}'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    child: const Text('حفظ'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
       ),
     );
   }
