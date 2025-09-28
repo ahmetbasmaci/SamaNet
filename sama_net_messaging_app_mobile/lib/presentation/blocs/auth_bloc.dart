@@ -306,17 +306,13 @@ class AuthBloc extends BaseBloc {
     final updatedUser = event.user;
     _currentUser = updatedUser;
 
-    if (_accessToken == null) {
-      // Attempt to read token from cached storage as fallback
-      _accessToken = await localStorage.getString(AppConstants.authTokenKey);
-    }
+    _accessToken ??= await localStorage.getString(AppConstants.authTokenKey);
 
     await localStorage.saveObject(AppConstants.userDataKey, updatedUser.toJson());
     await localStorage.saveCurrentUser(updatedUser);
 
     // Preserve existing access token from state or cache
-    final currentToken = _accessToken ??
-        (state is AuthAuthenticated ? (state as AuthAuthenticated).accessToken : null);
+    final currentToken = _accessToken ?? (state is AuthAuthenticated ? (state as AuthAuthenticated).accessToken : null);
 
     if (currentToken != null) {
       _accessToken = currentToken;

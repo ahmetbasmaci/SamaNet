@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:sama_net_messaging_app_mobile/presentation/widgets/conversations_list.dart';
 import '../../core/constants/arabic_strings.dart';
-import '../blocs/auth_bloc.dart';
-import '../blocs/bloc_provider.dart';
-import '../widgets/conversations_list.dart';
 
 /// Main screen with conversations list
 class MainScreen extends StatelessWidget {
@@ -12,7 +10,7 @@ class MainScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(ArabicStrings.chats),
+        title: const Text(ArabicStrings.chats),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -27,7 +25,6 @@ class MainScreen extends StatelessWidget {
               Navigator.pushNamed(context, '/profile');
             },
           ),
-         
         ],
       ),
       body: const ConversationsList(),

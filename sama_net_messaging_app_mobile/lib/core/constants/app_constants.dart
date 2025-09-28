@@ -2,8 +2,9 @@
 class ApiConstants {
   // Base server URL - Update this to match your local API
   static const String baseServerUrl = 'http://10.0.2.2:7073'; // Android emulator default
-  // static const String baseServerUrl = 'http://localhost:7073'; // Localhost (web/desktop)
-  // static const String baseServerUrl = 'http://172.24.224.1:7073'; // Real device / LAN
+
+   static const String baseServerUrlRealDevice = 'http://192.168.1.99:7073'; // Real device / LAN
+   static const String baseServerUrlEmulator = 'http://10.0.2.2:7073'; // Emulator / LAN
   static const String chatHubUrl = '$baseServerUrl/chatHub';
   static const String baseUrl = '$baseServerUrl/api';
 

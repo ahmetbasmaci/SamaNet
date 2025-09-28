@@ -6,6 +6,7 @@ import '../../data/models/user.dart';
 import '../../data/services/user_service.dart';
 import '../../data/services/local_storage_service.dart';
 import 'messages_page.dart';
+import '../widgets/user_avatar.dart';
 
 /// Search page for finding users by phone number
 class SearchPage extends StatefulWidget {
@@ -267,13 +268,7 @@ class _SearchPageState extends State<SearchPage> {
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: theme.colorScheme.primary,
-              child: Text(
-                user.initials,
-                style: TextStyle(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold),
-              ),
-            ),
+            leading: UserAvatar(user: user, radius: 24),
             title: Text(user.name, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

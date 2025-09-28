@@ -26,6 +26,7 @@ class _ProfilePageState extends State<ProfilePage> {
   AuthBloc? _authBloc;
   User? _user;
   bool _isUpdatingAvatar = false;
+  bool _isLoggingOut = false;
 
   @override
   void initState() {
@@ -143,67 +144,103 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final user = _user;
+    final authBloc = _authBloc ?? BlocProvider.of<AuthBloc>(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(ArabicStrings.profile),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              final authBloc = BlocProvider.of<AuthBloc>(context);
-              authBloc.add(AuthLogoutRequested());
-            },
-          ),
-        ],
-      ),
-      body: user == null
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(AppConstants.defaultPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: _buildAvatar(user),
-                  ),
-                  const SizedBox(height: 24),
-                  _buildReadOnlyField(label: ArabicStrings.usernameLabel, value: user.username, icon: Icons.person),
-                  const SizedBox(height: 16),
-                  _buildReadOnlyField(
-                      label: ArabicStrings.phoneNumberLabel, value: user.phoneNumber, icon: Icons.phone),
-                  const SizedBox(height: 16),
-                  _buildReadOnlyField(
-                    label: ArabicStrings.displayNameLabel,
-                    value: user.displayName?.isNotEmpty == true ? user.displayName! : '-',
-                    icon: Icons.person,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildReadOnlyField(
-                      label: ArabicStrings.createdAtLabel,
-                      value: _formatDate(user.createdAt),
-                      icon: Icons.calendar_today),
-                  const SizedBox(height: 16),
-                  _buildReadOnlyField(
-                    label: ArabicStrings.lastSeenLabel,
-                    value: user.lastSeen != null ? _formatDate(user.lastSeen!) : '-',
-                    icon: Icons.visibility,
-                  ),
-                  const SizedBox(height: 32),
-                  FilledButton.icon(
-                    onPressed: _isUpdatingAvatar ? null : _pickAndUploadAvatar,
-                    icon: _isUpdatingAvatar
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.camera_alt),
-                    label: Text(_isUpdatingAvatar ? ArabicStrings.loading : ArabicStrings.updateAvatar),
-                  ),
-                ],
-              ),
+    return BlocListener<AuthBloc, AuthState>(
+      bloc: authBloc,
+      listener: (context, state) {
+        if (!mounted) return;
+
+        if (state is AuthUnauthenticated) {
+          setState(() {
+            _isLoggingOut = false;
+            _user = null;
+          });
+          Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+        } else if (state is AuthError) {
+          if (_isLoggingOut) {
+            setState(() {
+              _isLoggingOut = false;
+            });
+            _showSnackBar(state.message, isError: true);
+          }
+        } else if (state is AuthAuthenticated && _isLoggingOut) {
+          setState(() {
+            _isLoggingOut = false;
+          });
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text(ArabicStrings.profile),
+          actions: [
+            IconButton(
+              icon: _isLoggingOut
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.logout),
+              onPressed: _isLoggingOut
+                  ? null
+                  : () {
+                      setState(() {
+                        _isLoggingOut = true;
+                      });
+                      authBloc.add(AuthLogoutRequested());
+                    },
             ),
+          ],
+        ),
+        body: user == null
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(AppConstants.defaultPadding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: _buildAvatar(user),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildReadOnlyField(label: ArabicStrings.usernameLabel, value: user.username, icon: Icons.person),
+                    const SizedBox(height: 16),
+                    _buildReadOnlyField(
+                        label: ArabicStrings.phoneNumberLabel, value: user.phoneNumber, icon: Icons.phone),
+                    const SizedBox(height: 16),
+                    _buildReadOnlyField(
+                      label: ArabicStrings.displayNameLabel,
+                      value: user.displayName?.isNotEmpty == true ? user.displayName! : '-',
+                      icon: Icons.person,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildReadOnlyField(
+                        label: ArabicStrings.createdAtLabel,
+                        value: _formatDate(user.createdAt),
+                        icon: Icons.calendar_today),
+                    const SizedBox(height: 16),
+                    _buildReadOnlyField(
+                      label: ArabicStrings.lastSeenLabel,
+                      value: user.lastSeen != null ? _formatDate(user.lastSeen!) : '-',
+                      icon: Icons.visibility,
+                    ),
+                    const SizedBox(height: 32),
+                    FilledButton.icon(
+                      onPressed: _isUpdatingAvatar ? null : _pickAndUploadAvatar,
+                      icon: _isUpdatingAvatar
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.camera_alt),
+                      label: Text(_isUpdatingAvatar ? ArabicStrings.loading : ArabicStrings.updateAvatar),
+                    ),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 
