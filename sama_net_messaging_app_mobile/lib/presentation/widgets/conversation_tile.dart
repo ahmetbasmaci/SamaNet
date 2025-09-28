@@ -1,11 +1,17 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:sama_net_messaging_app_mobile/presentation/pages/messages_page.dart';
+import '../../core/di/service_locator.dart';
 import '../../data/models/conversation.dart';
+import '../../data/models/user.dart';
+import '../../data/services/file_service.dart';
 
 /// Individual conversation tile widget
 class ConversationTile extends StatelessWidget {
   final Conversation conversation;
   final VoidCallback? onConversationUpdated;
+
+  static final FileService _fileService = serviceLocator.get<FileService>();
 
   const ConversationTile({super.key, required this.conversation, this.onConversationUpdated});
 
@@ -22,13 +28,7 @@ class ConversationTile extends StatelessWidget {
       child: ListTile(
         leading: Stack(
           children: [
-            CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              child: Text(
-                _getInitials(user.name),
-                style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.bold),
-              ),
-            ),
+            _buildAvatar(context, user),
             if (isOnline)
               Positioned(
                 bottom: 0,
@@ -92,6 +92,42 @@ class ConversationTile extends StatelessWidget {
           // When user returns from MessagesPage, refresh the conversations
           onConversationUpdated?.call();
         },
+      ),
+    );
+  }
+
+  Widget _buildAvatar(BuildContext context, User user) {
+    final avatarPath = user.avatarPath;
+    final double radius = 24;
+
+    if (avatarPath != null && avatarPath.isNotEmpty) {
+      final imageUrl = _fileService.getStreamUrl(avatarPath);
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: Colors.transparent,
+        child: ClipOval(
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
+            width: radius * 2,
+            height: radius * 2,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => _buildInitialsCircle(context, user, radius),
+            errorWidget: (context, url, error) => _buildInitialsCircle(context, user, radius),
+          ),
+        ),
+      );
+    }
+
+    return _buildInitialsCircle(context, user, radius);
+  }
+
+  Widget _buildInitialsCircle(BuildContext context, User user, double radius) {
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Theme.of(context).colorScheme.primary,
+      child: Text(
+        _getInitials(user.name),
+        style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.bold),
       ),
     );
   }

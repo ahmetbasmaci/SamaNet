@@ -129,6 +129,20 @@ namespace SamaNetMessaegingAppApi.Services
             }
         }
 
+        public async Task<UserResponseDto?> UpdateAvatarAsync(int userId, string avatarPath)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return null;
+            }
+
+            user.AvatarPath = avatarPath;
+            await _userRepository.UpdateAsync(user);
+
+            return MapToUserResponseDto(user);
+        }
+
         private static UserResponseDto MapToUserResponseDto(User user)
         {
             return new UserResponseDto
@@ -137,6 +151,7 @@ namespace SamaNetMessaegingAppApi.Services
                 Username = user.Username,
                 PhoneNumber = user.PhoneNumber,
                 DisplayName = user.DisplayName,
+                AvatarPath = user.AvatarPath,
                 CreatedAt = user.CreatedAt,
                 LastSeen = user.LastSeen
             };

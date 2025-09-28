@@ -6,6 +6,7 @@ import 'package:sama_net_messaging_app_mobile/presentation/pages/login_page.dart
 import 'package:sama_net_messaging_app_mobile/presentation/pages/main_screen.dart';
 import 'package:sama_net_messaging_app_mobile/presentation/pages/register_page.dart';
 import 'package:sama_net_messaging_app_mobile/presentation/pages/search_page.dart';
+import 'package:sama_net_messaging_app_mobile/presentation/pages/profile_page.dart';
 import 'package:sama_net_messaging_app_mobile/presentation/widgets/splash_screen.dart';
 
 import 'blocs/bloc_provider.dart';
@@ -45,6 +46,7 @@ class MessagingApp extends StatelessWidget {
           '/register': (context) => const RegisterPage(),
           '/main': (context) => const MainScreen(),
           '/search': (context) => const SearchPage(),
+          '/profile': (context) => const ProfilePage(),
         },
       ),
     );

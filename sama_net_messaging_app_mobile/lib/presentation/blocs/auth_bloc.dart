@@ -18,6 +18,12 @@ class AuthLoginRequested extends AuthEvent {
   AuthLoginRequested({required this.username, required this.password});
 }
 
+class AuthUserUpdated extends AuthEvent {
+  final User user;
+
+  AuthUserUpdated({required this.user});
+}
+
 class AuthRegisterRequested extends AuthEvent {
   final String username;
   final String phoneNumber;
@@ -87,6 +93,8 @@ class AuthBloc extends BaseBloc {
       _handleRegister(event);
     } else if (event is AuthLogoutRequested) {
       _handleLogout();
+    } else if (event is AuthUserUpdated) {
+      _handleUserUpdated(event);
     }
   }
 
@@ -291,6 +299,31 @@ class AuthBloc extends BaseBloc {
     _accessToken = null;
 
     emit(AuthUnauthenticated());
+  }
+
+  /// Handle user data updates (e.g., avatar changes)
+  Future<void> _handleUserUpdated(AuthUserUpdated event) async {
+    final updatedUser = event.user;
+    _currentUser = updatedUser;
+
+    if (_accessToken == null) {
+      // Attempt to read token from cached storage as fallback
+      _accessToken = await localStorage.getString(AppConstants.authTokenKey);
+    }
+
+    await localStorage.saveObject(AppConstants.userDataKey, updatedUser.toJson());
+    await localStorage.saveCurrentUser(updatedUser);
+
+    // Preserve existing access token from state or cache
+    final currentToken = _accessToken ??
+        (state is AuthAuthenticated ? (state as AuthAuthenticated).accessToken : null);
+
+    if (currentToken != null) {
+      _accessToken = currentToken;
+      emit(AuthAuthenticated(user: updatedUser, accessToken: currentToken));
+    } else {
+      emit(AuthAuthenticated(user: updatedUser, accessToken: ''));
+    }
   }
 
   /// Clear stored authentication data

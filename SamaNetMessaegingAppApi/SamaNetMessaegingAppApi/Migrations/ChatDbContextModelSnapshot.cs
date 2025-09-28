@@ -135,6 +135,10 @@ namespace SamaNetMessaegingAppApi.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AvatarPath")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("LastSeen")
                         .HasColumnType("TEXT");
 

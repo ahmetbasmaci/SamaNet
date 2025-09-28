@@ -30,6 +30,7 @@ namespace SamaNetMessaegingAppApi.Data
                 entity.Property(e => e.PhoneNumber).IsRequired().HasMaxLength(20);
                 entity.HasIndex(e => e.PhoneNumber).IsUnique().HasDatabaseName("IDX_Users_Phone");
                 entity.Property(e => e.DisplayName).HasMaxLength(100);
+                entity.Property(e => e.AvatarPath).HasMaxLength(255);
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             });
 

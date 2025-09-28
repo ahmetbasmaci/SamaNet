@@ -100,5 +100,26 @@ namespace SamaNetMessaegingAppApi.Controllers
             await _userService.UpdateLastSeenAsync(id);
             return Ok();
         }
+
+        /// <summary>
+        /// Update user's avatar image path
+        /// </summary>
+        [HttpPut("{id}/avatar")]
+        public async Task<ActionResult<UserResponseDto>> UpdateAvatar(int id, [FromBody] UpdateAvatarRequestDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var updatedUser = await _userService.UpdateAvatarAsync(id, request.AvatarPath);
+
+            if (updatedUser == null)
+            {
+                return NotFound("User not found");
+            }
+
+            return Ok(updatedUser);
+        }
     }
 }

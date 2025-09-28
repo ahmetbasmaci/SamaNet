@@ -58,6 +58,7 @@ namespace SamaNetMessaegingAppApi.DTOs
         public string Username { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
         public string? DisplayName { get; set; }
+        public string? AvatarPath { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastSeen { get; set; }
         public bool IsOnline { get; set; }
@@ -72,5 +73,15 @@ namespace SamaNetMessaegingAppApi.DTOs
         public string Message { get; set; } = string.Empty;
         public UserResponseDto? User { get; set; }
         public string? Token { get; set; }
+    }
+
+    /// <summary>
+    /// DTO for updating user avatar
+    /// </summary>
+    public class UpdateAvatarRequestDto
+    {
+        [Required]
+        [StringLength(255)]
+        public string AvatarPath { get; set; } = string.Empty;
     }
 }

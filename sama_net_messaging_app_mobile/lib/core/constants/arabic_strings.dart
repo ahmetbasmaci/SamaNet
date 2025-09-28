@@ -14,6 +14,18 @@ class ArabicStrings {
   static const String forgotPassword = 'نسيت كلمة المرور؟';
   static const String createNewAccount = 'إنشاء حساب جديد';
   static const String or = 'أو';
+  static const String usernameLabel = 'اسم المستخدم';
+  static const String phoneNumberLabel = 'رقم الهاتف';
+  static const String displayNameLabel = 'الاسم المعروض';
+  static const String createdAtLabel = 'تاريخ الإنشاء';
+  static const String lastSeenLabel = 'آخر ظهور';
+  static const String updateAvatar = 'تحديث الصورة الشخصية';
+  static const String avatarUpdateSuccess = 'تم تحديث الصورة الشخصية بنجاح';
+  static const String avatarUpdateFailure = 'فشل تحديث الصورة الشخصية';
+  static const String avatarSelectImage = 'اختر صورة جديدة';
+  static const String avatarNoImage = 'لم يتم تعيين صورة بعد';
+  static const String avatarInvalidImageType = 'يرجى اختيار ملف صورة صالح';
+  static const String avatarFileTooLarge = 'حجم الصورة أكبر من الحد المسموح (10 ميجابايت)';
 
   // Validation Messages
   static const String nameOrPhoneRequired = 'الاسم أو رقم الهاتف مطلوب';

@@ -1,3 +1,4 @@
+import '../../core/constants/app_constants.dart';
 import '../models/user.dart';
 import 'api_client.dart';
 
@@ -65,6 +66,21 @@ class UserService {
       return response;
     } catch (e) {
       return ApiResponse.error('Failed to update profile: ${e.toString()}');
+    }
+  }
+
+  /// Update user avatar
+  Future<ApiResponse<User>> updateAvatar({required int userId, required String avatarPath}) async {
+    try {
+      final response = await _apiClient.put<User>(
+        '${ApiConstants.updateUserAvatar}/$userId/avatar',
+        body: {'avatarPath': avatarPath},
+        fromJson: (json) => User.fromJson(json),
+      );
+
+      return response;
+    } catch (e) {
+      return ApiResponse.error('Failed to update avatar: ${e.toString()}');
     }
   }
 }

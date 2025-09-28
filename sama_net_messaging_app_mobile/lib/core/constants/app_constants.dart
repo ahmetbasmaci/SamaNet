@@ -13,6 +13,7 @@ class ApiConstants {
   static const String searchUsers = '/users/search';
   static const String getUserById = '/users';
   static const String updateLastSeen = '/users';
+  static const String updateUserAvatar = '/users';
 
   // Message endpoints
   static const String sendMessage = '/messages/send';

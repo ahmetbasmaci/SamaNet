@@ -25,6 +25,9 @@ namespace SamaNetMessaegingAppApi.Models
         [StringLength(100)]
         public string? DisplayName { get; set; }
 
+    [StringLength(255)]
+    public string? AvatarPath { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? LastSeen { get; set; }

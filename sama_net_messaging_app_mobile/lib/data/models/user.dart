@@ -4,6 +4,7 @@ class User {
   final String username;
   final String phoneNumber;
   final String? displayName;
+  final String? avatarPath;
   final DateTime createdAt;
   final DateTime? lastSeen;
 
@@ -12,6 +13,7 @@ class User {
     required this.username,
     required this.phoneNumber,
     this.displayName,
+    this.avatarPath,
     required this.createdAt,
     this.lastSeen,
   });
@@ -23,6 +25,7 @@ class User {
       username: json['username'] as String? ?? '',
       phoneNumber: json['phoneNumber'] as String? ?? '',
       displayName: json['displayName'] as String?,
+      avatarPath: json['avatarPath'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String? ?? DateTime.now().toIso8601String()),
       lastSeen: json['lastSeen'] != null ? DateTime.parse(json['lastSeen'] as String) : null,
     );
@@ -35,6 +38,7 @@ class User {
       'username': username,
       'phoneNumber': phoneNumber,
       'displayName': displayName,
+      'avatarPath': avatarPath,
       'createdAt': createdAt.toIso8601String(),
       'lastSeen': lastSeen?.toIso8601String(),
     };
@@ -46,6 +50,7 @@ class User {
     String? username,
     String? phoneNumber,
     String? displayName,
+    String? avatarPath,
     DateTime? createdAt,
     DateTime? lastSeen,
   }) {
@@ -54,6 +59,7 @@ class User {
       username: username ?? this.username,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       displayName: displayName ?? this.displayName,
+      avatarPath: avatarPath ?? this.avatarPath,
       createdAt: createdAt ?? this.createdAt,
       lastSeen: lastSeen ?? this.lastSeen,
     );

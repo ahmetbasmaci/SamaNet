@@ -22,12 +22,12 @@ class MainScreen extends StatelessWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.more_vert),
             onPressed: () {
-              final authBloc = BlocProvider.of<AuthBloc>(context);
-              authBloc.add(AuthLogoutRequested());
+              Navigator.pushNamed(context, '/profile');
             },
           ),
+         
         ],
       ),
       body: const ConversationsList(),

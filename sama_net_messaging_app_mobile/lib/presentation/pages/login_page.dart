@@ -25,7 +25,7 @@ class _LoginPageState extends State<LoginPage> {
     // Auto-fill credentials in debug mode
     if (kDebugMode) {
       _identifierController.text = 'ahmet';
-      _passwordController.text = '231';
+      _passwordController.text = '123';
     }
   }
 
