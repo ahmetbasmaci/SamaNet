@@ -3,7 +3,9 @@ import '../../core/di/service_locator.dart';
 import '../../data/services/message_service.dart';
 import 'conversation_tile.dart';
 import '../../data/services/local_storage_service.dart';
+import '../../data/services/realtime_chat_service.dart';
 import '../../data/models/conversation.dart';
+import '../../data/models/message.dart';
 import '../../data/models/user.dart';
 import '../../core/services/conversation_update_notifier.dart';
 import 'dart:async';
@@ -23,9 +25,14 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
   List<Conversation> _conversations = [];
   late LocalStorageService _localStorage;
   late MessageService _messageService;
+  late RealtimeChatService _realtimeChatService;
   late ConversationUpdateNotifier _updateNotifier;
   User? _currentUser;
   StreamSubscription<void>? _updateSubscription;
+  StreamSubscription<Message>? _messageReceivedSubscription;
+  StreamSubscription<Message>? _messageSentSubscription;
+  Timer? _refreshDebounceTimer;
+  bool _realtimeInitialized = false;
 
   @override
   void initState() {
@@ -41,6 +48,9 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _updateSubscription?.cancel();
+    _messageReceivedSubscription?.cancel();
+    _messageSentSubscription?.cancel();
+    _refreshDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -55,6 +65,7 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
   void _initializeServices() {
     _localStorage = serviceLocator.get<LocalStorageService>();
     _messageService = serviceLocator.get<MessageService>();
+    _realtimeChatService = serviceLocator.get<RealtimeChatService>();
     _updateNotifier = serviceLocator.get<ConversationUpdateNotifier>();
   }
 
@@ -66,8 +77,8 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
   }
 
   /// Public method to refresh conversations (can be called from parent widgets)
-  Future<void> refreshConversations() async {
-    await _loadConversations();
+  Future<void> refreshConversations({bool showLoadingIndicator = false}) async {
+    await _loadConversations(showLoadingIndicator: showLoadingIndicator);
   }
 
   Future<void> _loadCurrentUser() async {
@@ -78,7 +89,8 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
         setState(() {
           _currentUser = cachedUser;
         });
-        await _loadConversations();
+        await _initializeRealtime();
+        await _loadConversations(showLoadingIndicator: true);
       }
     } catch (e) {
       print('Error loading current user: $e');
@@ -88,26 +100,109 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
     }
   }
 
-  Future<void> _loadConversations() async {
+  Future<void> _initializeRealtime() async {
+    if (_currentUser == null || _realtimeInitialized) return;
+
+    _realtimeInitialized = true;
+    _realtimeChatService.configureForUser(_currentUser!.id);
+
+    try {
+      await _realtimeChatService.connect(userId: _currentUser!.id);
+    } catch (e) {
+      print('Error connecting to realtime service: $e');
+    }
+
+    _messageReceivedSubscription?.cancel();
+    _messageSentSubscription?.cancel();
+
+    _messageReceivedSubscription =
+        _realtimeChatService.onMessageReceived.listen(_handleRealtimeIncomingMessage);
+    _messageSentSubscription = _realtimeChatService.onMessageSent.listen(_handleRealtimeOutgoingMessage);
+  }
+
+  Future<void> _loadConversations({bool showLoadingIndicator = true}) async {
     if (_currentUser == null) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    if (showLoadingIndicator) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     try {
       final response = await _messageService.getRecentConversations(limit: 20);
       if (response.isSuccess && response.data != null) {
+        final conversations = [...response.data!]
+          ..sort((a, b) => b.lastActivity.compareTo(a.lastActivity));
         setState(() {
-          _conversations = response.data!;
+          _conversations = conversations;
+          _isLoading = false;
+        });
+      } else if (showLoadingIndicator) {
+        setState(() {
           _isLoading = false;
         });
       }
-
-      // F
     } catch (e) {
       print('Error loading conversations: $e');
+      if (showLoadingIndicator) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  void _handleRealtimeIncomingMessage(Message message) {
+    final currentUserId = _currentUser?.id;
+    if (currentUserId == null || message.receiverId != currentUserId) return;
+
+    _applyRealtimeUpdate(message: message, otherUserId: message.senderId, isIncoming: true);
+  }
+
+  void _handleRealtimeOutgoingMessage(Message message) {
+    final currentUserId = _currentUser?.id;
+    if (currentUserId == null || message.senderId != currentUserId) return;
+
+    _applyRealtimeUpdate(message: message, otherUserId: message.receiverId, isIncoming: false);
+  }
+
+  void _applyRealtimeUpdate({
+    required Message message,
+    required int otherUserId,
+    required bool isIncoming,
+  }) {
+    final index = _conversations.indexWhere((conversation) => conversation.otherUser.id == otherUserId);
+
+    if (index != -1) {
+      final existing = _conversations[index];
+      final updatedConversation = existing.copyWith(
+        lastMessage: message,
+        unreadCount: isIncoming ? existing.unreadCount + 1 : existing.unreadCount,
+        lastActivity: message.sentAt,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        final updatedList = [..._conversations];
+        updatedList.removeAt(index);
+        updatedList.insert(0, updatedConversation);
+        _conversations = updatedList;
+      });
+    } else {
+      _scheduleDebouncedRefresh();
+      return;
+    }
+
+    _scheduleDebouncedRefresh();
+  }
+
+  void _scheduleDebouncedRefresh() {
+    _refreshDebounceTimer?.cancel();
+    _refreshDebounceTimer = Timer(const Duration(milliseconds: 400), () {
+      refreshConversations(showLoadingIndicator: false);
+    });
   }
 
   @override
@@ -138,7 +233,7 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
     }
 
     return RefreshIndicator(
-      onRefresh: _loadConversations,
+      onRefresh: () => _loadConversations(showLoadingIndicator: false),
       child: ListView.builder(
         itemCount: _conversations.length,
         itemBuilder: (context, index) {

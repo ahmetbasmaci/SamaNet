@@ -118,8 +118,11 @@ Future<void> _initializeCoreServices() async {
 
   if (userId != null) {
     apiClient.setUserId(userId.toString());
-    final realtime = serviceLocator.get<RealtimeChatService>();
-    realtime.configureForUser(userId);
+    final parsedUserId = int.tryParse(userId);
+    if (parsedUserId != null) {
+      final realtime = serviceLocator.get<RealtimeChatService>();
+      realtime.configureForUser(parsedUserId);
+    }
   }
 }
 
