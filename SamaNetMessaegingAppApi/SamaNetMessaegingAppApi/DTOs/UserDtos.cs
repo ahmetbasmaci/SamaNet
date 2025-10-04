@@ -8,7 +8,7 @@ namespace SamaNetMessaegingAppApi.DTOs
     public class LoginRequestDto
     {
         [Required]
-        [StringLength(50)]
+        [StringLength(50, MinimumLength = 4)]
         public string Username { get; set; } = string.Empty;
 
         [Required]
@@ -22,7 +22,7 @@ namespace SamaNetMessaegingAppApi.DTOs
     public class RegisterRequestDto
     {
         [Required]
-        [StringLength(50)]
+        [StringLength(50, MinimumLength = 4)]
         public string Username { get; set; } = string.Empty;
 
         [Required]
@@ -39,7 +39,7 @@ namespace SamaNetMessaegingAppApi.DTOs
     }
 
     /// <summary>
-    /// DTO for user search request
+    /// DTO for user search request by phone
     /// </summary>
     public class UserSearchRequestDto
     {
@@ -47,6 +47,16 @@ namespace SamaNetMessaegingAppApi.DTOs
         [StringLength(20)]
         [Phone]
         public string PhoneNumber { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// DTO for user search request by username
+    /// </summary>
+    public class UserSearchByUsernameRequestDto
+    {
+        [Required]
+        [StringLength(50, MinimumLength = 4)]
+        public string Username { get; set; } = string.Empty;
     }
 
     /// <summary>

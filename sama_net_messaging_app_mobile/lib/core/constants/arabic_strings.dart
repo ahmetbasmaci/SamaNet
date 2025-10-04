@@ -77,6 +77,7 @@ class ArabicStrings {
   static const String emptyUsername = 'يرجى إدخال اسم المستخدم';
   static const String emptyPassword = 'يرجى إدخال كلمة المرور';
   static const String usernameMinLength = 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل';
+  static const String usernameMinLength4 = 'اسم المستخدم يجب أن يكون 4 أحرف على الأقل';
   static const String passwordMinLength = 'كلمة المرور يجب أن تكون 3 أحرف على الأقل';
   static const String invalidUsernameFormat = 'اسم المستخدم يحتوي على أحرف غير مسموحة';
   static const String loginSuccessful = 'تم تسجيل الدخول بنجاح';
@@ -85,7 +86,9 @@ class ArabicStrings {
   // Search
   static const String search = 'بحث';
   static const String searchByPhone = 'البحث برقم الهاتف';
+  static const String searchByUsername = 'البحث باسم المستخدم';
   static const String enterPhoneNumber = 'أدخل رقم الهاتف';
+  static const String enterUsername = 'أدخل اسم المستخدم';
   static const String searchUsers = 'البحث عن المستخدمين';
   static const String noUsersFound = 'لم يتم العثور على مستخدمين';
   static const String userNotFound = 'المستخدم غير موجود';

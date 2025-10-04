@@ -113,6 +113,12 @@ namespace SamaNetMessaegingAppApi.Services
             return users.Select(MapToUserResponseDto);
         }
 
+        public async Task<IEnumerable<UserResponseDto>> SearchUsersByUsernameAsync(string username)
+        {
+            var users = await _userRepository.SearchByUsernameAsync(username);
+            return users.Select(MapToUserResponseDto);
+        }
+
         public async Task<UserResponseDto?> GetUserByIdAsync(int id)
         {
             var user = await _userRepository.GetByIdAsync(id);

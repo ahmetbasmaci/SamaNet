@@ -170,7 +170,7 @@ class _LoginPageState extends State<LoginPage> {
                         decoration: const InputDecoration(
                           labelText: ArabicStrings.nameOrPhone,
                           prefixIcon: Icon(Icons.person_outline),
-                          helperText: ArabicStrings.usernameMinLength,
+                          helperText: ArabicStrings.usernameMinLength4,
                           helperMaxLines: 2,
                         ),
                         keyboardType: TextInputType.text,

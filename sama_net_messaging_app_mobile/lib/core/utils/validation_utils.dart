@@ -47,7 +47,7 @@ class ValidationUtils {
   /// Validate username format
   static bool isValidUsername(String username) {
     if (username.isEmpty) return false;
-    if (username.length < 3) return false;
+    if (username.length < 4) return false;
 
     // Allow letters, numbers, underscore, and Arabic characters
     final usernameRegex = RegExp(r'^[a-zA-Z0-9_\u0600-\u06FF]+$');
@@ -97,8 +97,8 @@ class ValidationUtils {
     if (value == null || value.isEmpty) {
       return ArabicStrings.emptyUsername;
     }
-    if (value.length < 3) {
-      return ArabicStrings.usernameMinLength;
+    if (value.length < 4) {
+      return ArabicStrings.usernameMinLength4;
     }
     if (!isValidUsername(value)) {
       return ArabicStrings.invalidUsernameFormat;
