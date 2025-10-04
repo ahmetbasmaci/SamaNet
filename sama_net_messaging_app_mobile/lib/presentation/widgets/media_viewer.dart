@@ -45,16 +45,56 @@ class _MediaViewerState extends State<MediaViewer> {
   }
 
   void _initializeVideoPlayer() async {
-    final videoUrl = _fileService.getStreamUrl(widget.attachment.filePath);
-    _videoController = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
-
     try {
-      await _videoController!.initialize();
-      setState(() {
-        _isVideoInitialized = true;
+      final videoUrl = _fileService.getStreamUrl(widget.attachment.filePath);
+      debugPrint('[MediaViewer] Initializing video player with URL: $videoUrl');
+
+      // Create video controller with network URL
+      _videoController = VideoPlayerController.networkUrl(
+        Uri.parse(videoUrl),
+        httpHeaders: {
+          'Accept': 'video/*',
+        },
+      );
+
+      // Add listener for errors during playback
+      _videoController!.addListener(() {
+        if (_videoController!.value.hasError) {
+          debugPrint('[MediaViewer] Video player error during playback: ${_videoController!.value.errorDescription}');
+        }
       });
+
+      await _videoController!.initialize();
+
+      if (mounted) {
+        setState(() {
+          _isVideoInitialized = true;
+        });
+      }
+
+      debugPrint('[MediaViewer] Video player initialized successfully');
     } catch (e) {
-      print('Error initializing video player: $e');
+      debugPrint('[MediaViewer] Error initializing video player: $e');
+
+      if (mounted) {
+        setState(() {
+          _isVideoInitialized = false;
+        });
+
+        // Show error message to user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في تحميل الفيديو: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'تحميل',
+              textColor: Colors.white,
+              onPressed: () => _downloadFile(),
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -139,60 +179,102 @@ class _MediaViewerState extends State<MediaViewer> {
   }
 
   Widget _buildVideoViewer() {
+    // Show error state if video controller has error or initialization failed
+    if (_videoController?.value.hasError ?? false) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            const Text(
+              'خطأ في تشغيل الفيديو',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Text(
+                _videoController?.value.errorDescription ?? 'حدث خطأ غير متوقع',
+                style: const TextStyle(color: Colors.white54, fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _downloadFile(),
+              icon: const Icon(Icons.download),
+              label: const Text('تحميل الفيديو'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (!_isVideoInitialized || _videoController == null) {
       return const Center(
         child: CircularProgressIndicator(color: Colors.white),
       );
     }
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        AspectRatio(
-          aspectRatio: _videoController!.value.aspectRatio,
-          child: VideoPlayer(_videoController!),
-        ),
-        const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: Icon(
-                _videoController!.value.isPlaying ? Icons.pause : Icons.play_arrow,
-                color: Colors.white,
-                size: 32,
-              ),
-              onPressed: () {
-                setState(() {
-                  if (_videoController!.value.isPlaying) {
-                    _videoController!.pause();
-                  } else {
-                    _videoController!.play();
-                  }
-                });
-              },
-            ),
-            const SizedBox(width: 20),
-            IconButton(
-              icon: const Icon(Icons.replay, color: Colors.white, size: 32),
-              onPressed: () {
-                _videoController!.seekTo(Duration.zero);
-                _videoController!.play();
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        VideoProgressIndicator(
-          _videoController!,
-          allowScrubbing: true,
-          colors: const VideoProgressColors(
-            playedColor: Colors.blue,
-            bufferedColor: Colors.grey,
-            backgroundColor: Colors.white24,
+    // Wrap in SingleChildScrollView to prevent overflow
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AspectRatio(
+            aspectRatio: _videoController!.value.aspectRatio,
+            child: VideoPlayer(_videoController!),
           ),
-        ),
-      ],
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: Icon(
+                  _videoController!.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                  color: Colors.white,
+                  size: 32,
+                ),
+                onPressed: () {
+                  setState(() {
+                    if (_videoController!.value.isPlaying) {
+                      _videoController!.pause();
+                    } else {
+                      _videoController!.play();
+                    }
+                  });
+                },
+              ),
+              const SizedBox(width: 20),
+              IconButton(
+                icon: const Icon(Icons.replay, color: Colors.white, size: 32),
+                onPressed: () {
+                  _videoController!.seekTo(Duration.zero);
+                  _videoController!.play();
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: VideoProgressIndicator(
+              _videoController!,
+              allowScrubbing: true,
+              colors: const VideoProgressColors(
+                playedColor: Colors.blue,
+                bufferedColor: Colors.grey,
+                backgroundColor: Colors.white24,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20), // Add bottom padding
+        ],
+      ),
     );
   }
 

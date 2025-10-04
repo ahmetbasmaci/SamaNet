@@ -63,6 +63,7 @@ namespace SamaNetMessaegingAppApi.Controllers
 
         /// <summary>
         /// Stream a file for direct viewing (images, videos, etc.)
+        /// Supports HTTP Range requests for video streaming
         /// </summary>
         [HttpGet("stream")]
         public async Task<ActionResult> StreamFile([FromQuery] string filePath)
@@ -74,12 +75,27 @@ namespace SamaNetMessaegingAppApi.Controllers
 
             try
             {
-                var (content, contentType, fileName) = await _fileService.GetFileAsync(filePath);
+                var fullPath = Path.Combine(Directory.GetCurrentDirectory(), filePath);
+                if (!System.IO.File.Exists(fullPath))
+                {
+                    return NotFound("File not found");
+                }
 
-                // Set headers for streaming  
+                var fileInfo = new FileInfo(fullPath);
+                var contentType = GetContentType(fullPath);
+                
+                // For video files, support HTTP Range requests
+                if (contentType.StartsWith("video/"))
+                {
+                    return await StreamVideoWithRangeSupport(fullPath, fileInfo, contentType);
+                }
+
+                // For other files (images, etc.), return the entire file
+                var (content, _, fileName) = await _fileService.GetFileAsync(filePath);
                 Response.Headers["Content-Disposition"] = $"inline; filename=\"{fileName}\"";
-                Response.Headers["Cache-Control"] = "public, max-age=31536000"; // Cache for 1 year
-
+                Response.Headers["Cache-Control"] = "public, max-age=31536000";
+                Response.Headers["Accept-Ranges"] = "bytes";
+                
                 return File(content, contentType);
             }
             catch (FileNotFoundException)
@@ -90,6 +106,82 @@ namespace SamaNetMessaegingAppApi.Controllers
             {
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
+        }
+
+        private async Task<ActionResult> StreamVideoWithRangeSupport(string filePath, FileInfo fileInfo, string contentType)
+        {
+            var fileLength = fileInfo.Length;
+            var rangeHeader = Request.Headers["Range"].ToString();
+
+            // If no range header, return entire file
+            if (string.IsNullOrEmpty(rangeHeader))
+            {
+                Response.Headers["Accept-Ranges"] = "bytes";
+                Response.Headers["Content-Length"] = fileLength.ToString();
+                Response.Headers["Cache-Control"] = "public, max-age=31536000";
+                
+                var stream = System.IO.File.OpenRead(filePath);
+                return File(stream, contentType, enableRangeProcessing: true);
+            }
+
+            // Parse range header (e.g., "bytes=0-1023")
+            var range = rangeHeader.Replace("bytes=", "").Split('-');
+            var start = long.Parse(range[0]);
+            var end = range.Length > 1 && !string.IsNullOrEmpty(range[1]) 
+                ? long.Parse(range[1]) 
+                : fileLength - 1;
+
+            // Validate range
+            if (start > end || start < 0 || end >= fileLength)
+            {
+                Response.Headers["Content-Range"] = $"bytes */{fileLength}";
+                return StatusCode(416); // Range Not Satisfiable
+            }
+
+            var length = end - start + 1;
+
+            // Set response headers for partial content
+            Response.StatusCode = 206; // Partial Content
+            Response.Headers["Accept-Ranges"] = "bytes";
+            Response.Headers["Content-Range"] = $"bytes {start}-{end}/{fileLength}";
+            Response.Headers["Content-Length"] = length.ToString();
+            Response.Headers["Cache-Control"] = "public, max-age=31536000";
+
+            // Stream the requested range
+            var fileStream = System.IO.File.OpenRead(filePath);
+            fileStream.Seek(start, SeekOrigin.Begin);
+            
+            var buffer = new byte[length];
+            await fileStream.ReadAsync(buffer, 0, (int)length);
+            fileStream.Close();
+
+            return File(buffer, contentType);
+        }
+
+        private string GetContentType(string filePath)
+        {
+            var extension = Path.GetExtension(filePath).ToLowerInvariant();
+            return extension switch
+            {
+                ".mp4" => "video/mp4",
+                ".webm" => "video/webm",
+                ".ogv" => "video/ogg",
+                ".avi" => "video/x-msvideo",
+                ".mov" => "video/quicktime",
+                ".wmv" => "video/x-ms-wmv",
+                ".flv" => "video/x-flv",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".webp" => "image/webp",
+                ".bmp" => "image/bmp",
+                ".mp3" => "audio/mpeg",
+                ".wav" => "audio/wav",
+                ".ogg" => "audio/ogg",
+                ".m4a" => "audio/mp4",
+                ".pdf" => "application/pdf",
+                _ => "application/octet-stream"
+            };
         }
 
         /// <summary>
