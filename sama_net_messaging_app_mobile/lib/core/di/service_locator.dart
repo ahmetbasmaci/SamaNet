@@ -7,6 +7,7 @@ import '../../data/services/file_service.dart';
 import '../../data/services/chat_service.dart';
 import '../../data/services/message_status_service.dart';
 import '../../data/services/realtime_chat_service.dart';
+import '../../data/services/notification_service.dart';
 import '../../presentation/blocs/auth_bloc.dart';
 import '../constants/app_constants.dart';
 import '../services/conversation_update_notifier.dart';
@@ -91,6 +92,9 @@ Future<void> initializeDependencies() async {
     MessageStatusService(serviceLocator.get<MessageService>(), serviceLocator.get<LocalStorageService>()),
   );
 
+  // Notification service
+  serviceLocator.registerSingleton<NotificationService>(NotificationService());
+
   // BLoCs (factory pattern for new instances when needed)
   serviceLocator.registerFactory<AuthBloc>(
     () => AuthBloc(
@@ -107,6 +111,11 @@ Future<void> initializeDependencies() async {
 Future<void> _initializeCoreServices() async {
   final localStorage = serviceLocator.get<LocalStorageService>();
   final apiClient = serviceLocator.get<ApiClient>();
+  final notificationService = serviceLocator.get<NotificationService>();
+
+  // Initialize notification service
+  await notificationService.initialize();
+  await notificationService.requestPermissions();
 
   // Load stored auth token and user ID
   final token = await localStorage.getString('authToken');

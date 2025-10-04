@@ -3,7 +3,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
 import '../../data/models/message.dart';
 import '../../data/services/file_service.dart';
+import '../../data/services/notification_service.dart';
 import '../../core/di/service_locator.dart';
+import 'notification_permission_dialog.dart';
 
 /// Media viewer widget for images, videos, and audio files
 class MediaViewer extends StatefulWidget {
@@ -26,6 +28,7 @@ class _MediaViewerState extends State<MediaViewer> {
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
   final FileService _fileService = serviceLocator.get<FileService>();
+  final NotificationService _notificationService = serviceLocator.get<NotificationService>();
 
   @override
   void initState() {
@@ -306,6 +309,9 @@ class _MediaViewerState extends State<MediaViewer> {
       _downloadProgress = 0.0;
     });
 
+    // Get file name for notification
+    final fileName = widget.attachment.filePath.split('/').last;
+
     try {
       final result = await _fileService.downloadFile(
         widget.attachment.filePath,
@@ -319,14 +325,57 @@ class _MediaViewerState extends State<MediaViewer> {
       );
 
       if (result.isSuccess && result.data != null) {
+        // Check if notification permission is granted
+        final notificationEnabled = await _notificationService.areNotificationsEnabled();
+        
+        // Show local notification if permission granted
+        if (notificationEnabled) {
+          await _notificationService.showDownloadCompleteNotification(
+            fileName: fileName,
+            filePath: result.data!,
+          );
+        }
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('تم تحميل الملف بنجاح: ${result.data}'),
+              content: Text(
+                notificationEnabled
+                    ? 'تم تحميل الملف بنجاح. اضغط على الإشعار للفتح'
+                    : 'تم تحميل الملف بنجاح',
+              ),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 3),
+              action: SnackBarAction(
+                label: 'فتح',
+                textColor: Colors.white,
+                onPressed: () {
+                  _notificationService.openFile(result.data!);
+                },
+              ),
             ),
           );
+
+          // If notification permission not granted, show option to enable
+          if (!notificationEnabled) {
+            Future.delayed(const Duration(seconds: 1), () {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('قم بتفعيل الإشعارات لتلقي تنبيهات التحميل'),
+                    backgroundColor: Colors.orange,
+                    action: SnackBarAction(
+                      label: 'تفعيل',
+                      textColor: Colors.white,
+                      onPressed: () {
+                        NotificationPermissionDialog.show(context);
+                      },
+                    ),
+                  ),
+                );
+              }
+            });
+          }
         }
       } else {
         if (mounted) {
