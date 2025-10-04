@@ -206,7 +206,8 @@ class _SearchPageState extends State<SearchPage> {
                             const SizedBox(height: 16),
                             Text(
                               'أدخل اسم المستخدم للبحث عن المستخدمين',
-                              style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                              style: theme.textTheme.bodyLarge
+                                  ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6)),
                               textAlign: TextAlign.center,
                             ),
                           ],
