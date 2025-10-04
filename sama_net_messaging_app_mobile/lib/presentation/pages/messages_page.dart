@@ -778,6 +778,12 @@ class _MessagesPageState extends State<MessagesPage> {
 
   /// Pick image from camera
   Future<void> _pickImageFromCamera() async {
+    // Prevent double-sending
+    if (_isUploadingFile) {
+      debugPrint('[MessagesPage::_pickImageFromCamera] Already uploading a file, ignoring request');
+      return;
+    }
+
     try {
       // Request camera permission
       final cameraStatus = await Permission.camera.request();
@@ -804,6 +810,12 @@ class _MessagesPageState extends State<MessagesPage> {
 
   /// Pick image from gallery
   Future<void> _pickImageFromGallery() async {
+    // Prevent double-sending
+    if (_isUploadingFile) {
+      debugPrint('[MessagesPage::_pickImageFromGallery] Already uploading a file, ignoring request');
+      return;
+    }
+
     try {
       // Request photo permission
       final photoStatus = await Permission.photos.request();
@@ -830,6 +842,12 @@ class _MessagesPageState extends State<MessagesPage> {
 
   /// Pick video from camera
   Future<void> _pickVideoFromCamera() async {
+    // Prevent double-sending
+    if (_isUploadingFile) {
+      debugPrint('[MessagesPage::_pickVideoFromCamera] Already uploading a file, ignoring request');
+      return;
+    }
+
     try {
       // Request camera permission
       final cameraStatus = await Permission.camera.request();
@@ -854,6 +872,12 @@ class _MessagesPageState extends State<MessagesPage> {
 
   /// Pick video from gallery
   Future<void> _pickVideoFromGallery() async {
+    // Prevent double-sending
+    if (_isUploadingFile) {
+      debugPrint('[MessagesPage::_pickVideoFromGallery] Already uploading a file, ignoring request');
+      return;
+    }
+
     try {
       // Request photo permission
       final photoStatus = await Permission.photos.request();
@@ -878,6 +902,12 @@ class _MessagesPageState extends State<MessagesPage> {
 
   /// Pick file from device
   Future<void> _pickFile() async {
+    // Prevent double-sending
+    if (_isUploadingFile) {
+      debugPrint('[MessagesPage::_pickFile] Already uploading a file, ignoring request');
+      return;
+    }
+
     try {
       // Request storage permission
       final storageStatus = await Permission.storage.request();
@@ -1004,6 +1034,12 @@ class _MessagesPageState extends State<MessagesPage> {
   Future<void> _uploadAndSendFile(String filePath, String messageType, {String? caption}) async {
     if (_currentUser == null) return;
 
+    // Prevent double-sending
+    if (_isUploadingFile) {
+      debugPrint('[MessagesPage::_uploadAndSendFile] Already uploading a file, aborting');
+      return;
+    }
+
     setState(() => _isUploadingFile = true);
 
     try {
@@ -1037,7 +1073,9 @@ class _MessagesPageState extends State<MessagesPage> {
       debugPrintStack(stackTrace: stackTrace);
       _showErrorSnackBar('خطأ في إرسال الملف: ${e.toString()}');
     } finally {
-      setState(() => _isUploadingFile = false);
+      if (mounted) {
+        setState(() => _isUploadingFile = false);
+      }
     }
   }
 

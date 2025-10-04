@@ -23,6 +23,8 @@ class MediaViewer extends StatefulWidget {
 class _MediaViewerState extends State<MediaViewer> {
   VideoPlayerController? _videoController;
   bool _isVideoInitialized = false;
+  bool _isDownloading = false;
+  double _downloadProgress = 0.0;
   final FileService _fileService = serviceLocator.get<FileService>();
 
   @override
@@ -65,10 +67,24 @@ class _MediaViewerState extends State<MediaViewer> {
           style: const TextStyle(color: Colors.white),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.download, color: Colors.white),
-            onPressed: () => _downloadFile(),
-          ),
+          if (_isDownloading)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  value: _downloadProgress,
+                  strokeWidth: 2,
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.download, color: Colors.white),
+              onPressed: () => _downloadFile(),
+            ),
         ],
       ),
       body: Center(
@@ -236,11 +252,22 @@ class _MediaViewerState extends State<MediaViewer> {
             style: const TextStyle(color: Colors.white54, fontSize: 14),
           ),
           const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _downloadFile(),
-            icon: const Icon(Icons.download),
-            label: const Text('تحميل'),
-          ),
+          _isDownloading
+              ? Column(
+                  children: [
+                    CircularProgressIndicator(value: _downloadProgress),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${(_downloadProgress * 100).toStringAsFixed(0)}%',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                )
+              : ElevatedButton.icon(
+                  onPressed: () => _downloadFile(),
+                  icon: const Icon(Icons.download),
+                  label: const Text('تحميل'),
+                ),
         ],
       ),
     );
@@ -271,9 +298,63 @@ class _MediaViewerState extends State<MediaViewer> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} ميجابايت';
   }
 
-  void _downloadFile() {
-    // TODO: Implement file download functionality
-    _showNotImplementedSnackBar('تحميل الملف');
+  void _downloadFile() async {
+    if (_isDownloading) return;
+
+    setState(() {
+      _isDownloading = true;
+      _downloadProgress = 0.0;
+    });
+
+    try {
+      final result = await _fileService.downloadFile(
+        widget.attachment.filePath,
+        onProgress: (received, total) {
+          if (total > 0) {
+            setState(() {
+              _downloadProgress = received / total;
+            });
+          }
+        },
+      );
+
+      if (result.isSuccess && result.data != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم تحميل الملف بنجاح: ${result.data}'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.error ?? 'فشل في تحميل الملف'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+          _downloadProgress = 0.0;
+        });
+      }
+    }
   }
 
   void _showNotImplementedSnackBar(String feature) {
