@@ -327,7 +327,7 @@ class _MediaViewerState extends State<MediaViewer> {
       if (result.isSuccess && result.data != null) {
         // Check if notification permission is granted
         final notificationEnabled = await _notificationService.areNotificationsEnabled();
-        
+
         // Show local notification if permission granted
         if (notificationEnabled) {
           await _notificationService.showDownloadCompleteNotification(
@@ -340,9 +340,7 @@ class _MediaViewerState extends State<MediaViewer> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                notificationEnabled
-                    ? 'تم تحميل الملف بنجاح. اضغط على الإشعار للفتح'
-                    : 'تم تحميل الملف بنجاح',
+                notificationEnabled ? 'تم تحميل الملف بنجاح. اضغط على الإشعار للفتح' : 'تم تحميل الملف بنجاح',
               ),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 3),

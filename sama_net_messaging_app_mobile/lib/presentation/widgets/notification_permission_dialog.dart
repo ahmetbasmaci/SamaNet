@@ -47,7 +47,7 @@ class NotificationPermissionDialog extends StatelessWidget {
   /// Check and request notification permission if needed
   static Future<void> checkAndRequestPermission(BuildContext context) async {
     final notificationService = serviceLocator.get<NotificationService>();
-    
+
     // Check if already granted
     final isEnabled = await notificationService.areNotificationsEnabled();
     if (isEnabled) {
