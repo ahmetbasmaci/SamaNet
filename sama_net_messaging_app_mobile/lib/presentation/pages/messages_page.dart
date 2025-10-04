@@ -723,52 +723,122 @@ class _MessagesPageState extends State<MessagesPage> {
   }
 
   void _showAttachmentOptions() {
+    final theme = Theme.of(context);
+
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text(ArabicStrings.camera),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImageFromCamera();
-              },
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.onSurface.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text(ArabicStrings.gallery),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImageFromGallery();
-              },
+            const SizedBox(height: 20),
+
+            // Title
+            Text(
+              'إرسال مرفق',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.videocam),
-              title: const Text('فيديو من الكاميرا'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickVideoFromCamera();
-              },
+            const SizedBox(height: 24),
+
+            // Options Grid
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildAttachmentOption(
+                  context: context,
+                  icon: Icons.camera_alt,
+                  label: 'كاميرا',
+                  color: Colors.purple,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImageFromCamera();
+                  },
+                ),
+                _buildAttachmentOption(
+                  context: context,
+                  icon: Icons.videocam,
+                  label: 'فيديو',
+                  color: Colors.red,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickVideoFromCamera();
+                  },
+                ),
+                _buildAttachmentOption(
+                  context: context,
+                  icon: Icons.insert_drive_file,
+                  label: 'ملف',
+                  color: Colors.blue,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickFile();
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.video_library),
-              title: const Text('فيديو من المعرض'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickVideoFromGallery();
-              },
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttachmentOption({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 90,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: color,
+                size: 28,
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.insert_drive_file),
-              title: const Text(ArabicStrings.selectFile),
-              onTap: () {
-                Navigator.pop(context);
-                _pickFile();
-              },
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -954,7 +1024,7 @@ class _MessagesPageState extends State<MessagesPage> {
 
     String captionText = '';
 
-    final caption = await showModalBottomSheet<String>(
+    final caption = await showModalBottomSheet<String?>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) {
@@ -1000,7 +1070,7 @@ class _MessagesPageState extends State<MessagesPage> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => Navigator.of(sheetContext).pop(),
+                              onPressed: () => Navigator.of(sheetContext).pop(null),
                               child: const Text(ArabicStrings.cancel),
                             ),
                           ),
@@ -1027,7 +1097,8 @@ class _MessagesPageState extends State<MessagesPage> {
       return; // User cancelled.
     }
 
-    await _uploadAndSendFile(filePath, messageType, caption: caption);
+    // Pass empty string if caption is empty, so we don't add file description
+    await _uploadAndSendFile(filePath, messageType, caption: caption.isEmpty ? '' : caption);
   }
 
   /// Upload file and send message
@@ -1051,9 +1122,11 @@ class _MessagesPageState extends State<MessagesPage> {
         }
       }
 
+      final messageContent = _resolveAttachmentCaption(filePath, messageType, caption);
+
       final messageResponse = await _messageService.sendMessageWithAttachment(
         receiverId: widget.chatUser.id,
-        content: _resolveAttachmentCaption(filePath, messageType, caption),
+        content: messageContent, // Send as-is, empty is now allowed by API
         messageType: messageType,
         filePath: filePath,
       );
@@ -1080,10 +1153,22 @@ class _MessagesPageState extends State<MessagesPage> {
   }
 
   String _resolveAttachmentCaption(String filePath, String messageType, String? caption) {
+    // If caption is explicitly empty string (user chose to send without caption), return empty
+    if (caption == '') {
+      return '';
+    }
+
     final trimmed = caption?.trim() ?? '';
     if (trimmed.isNotEmpty) {
       return trimmed;
     }
+
+    // For images with no caption, return empty string
+    // For other files (videos, documents), return file description
+    if (messageType == 'image') {
+      return '';
+    }
+
     return _getFileDescription(filePath, messageType);
   }
 
