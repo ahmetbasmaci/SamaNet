@@ -5,6 +5,7 @@ using SamaNetMessaegingAppApi.Repositories;
 using SamaNetMessaegingAppApi.Repositories.Interfaces;
 using SamaNetMessaegingAppApi.Services;
 using SamaNetMessaegingAppApi.Services.Interfaces;
+using SamaNetMessaegingAppApi.Middleware;
 
 namespace SamaNetMessaegingAppApi
 {
@@ -111,6 +112,11 @@ namespace SamaNetMessaegingAppApi
                 builder.AddConsole();
                 builder.AddDebug();
             });
+
+            // Configure Bandwidth Limiter
+            var bandwidthOptions = new BandwidthLimiterOptions();
+            configuration.GetSection("BandwidthLimiter").Bind(bandwidthOptions);
+            services.AddSingleton(bandwidthOptions);
         }
 
         private static void ConfigureApp(WebApplication app)
@@ -134,6 +140,10 @@ namespace SamaNetMessaegingAppApi
 
             // Enable CORS
             app.UseCors("ChatAppPolicy");
+
+            // Enable bandwidth limiting for file uploads/downloads
+            var bandwidthOptions = app.Services.GetRequiredService<BandwidthLimiterOptions>();
+            app.UseBandwidthLimiter(bandwidthOptions);
 
             // Enable HTTPS redirection
             app.UseHttpsRedirection();
