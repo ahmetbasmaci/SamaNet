@@ -11,6 +11,7 @@ import '../../data/services/file_service.dart';
 import '../../data/services/user_service.dart';
 import '../blocs/auth_bloc.dart';
 import '../blocs/bloc_provider.dart';
+import 'add_new_user_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -240,6 +241,19 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
               ),
+        floatingActionButton: user != null && user.username.toLowerCase() == 'admin'
+            ? FloatingActionButton.extended(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AddNewUserPage(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.person_add),
+                label: const Text(ArabicStrings.addNewUser),
+              )
+            : null,
       ),
     );
   }

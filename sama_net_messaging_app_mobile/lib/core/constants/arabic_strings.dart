@@ -125,6 +125,20 @@ class ArabicStrings {
   static const String noBlockedUsers = 'لا يوجد مستخدمون محظورون';
   static const String cannotSendToBlockedUser = 'لا يمكن إرسال رسائل لمستخدم محظور';
 
+  // Admin - Add New User
+  static const String addNewUser = 'إضافة مستخدم جديد';
+  static const String registerNewUser = 'تسجيل مستخدم جديد';
+  static const String usernameHint = 'أدخل اسم المستخدم (4 أحرف على الأقل)';
+  static const String passwordHint = 'أدخل كلمة المرور';
+  static const String phoneNumberHint = 'أدخل رقم الهاتف';
+  static const String displayNameHint = 'أدخل الاسم المعروض (اختياري)';
+  static const String usernameValidation = 'اسم المستخدم يجب أن يكون 4-50 حرفاً';
+  static const String passwordValidation = 'كلمة المرور مطلوبة';
+  static const String phoneNumberValidation = 'رقم الهاتف يجب أن يكون بين 10-20 رقماً';
+  static const String displayNameValidation = 'الاسم المعروض يجب ألا يزيد عن 100 حرف';
+  static const String userRegisteredSuccessfully = 'تم تسجيل المستخدم بنجاح';
+  static const String userRegistrationFailed = 'فشل تسجيل المستخدم';
+
   // Date and Time
   static const String today = 'اليوم';
   static const String yesterday = 'أمس';
