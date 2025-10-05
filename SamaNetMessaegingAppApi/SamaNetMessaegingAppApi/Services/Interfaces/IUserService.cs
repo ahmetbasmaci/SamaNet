@@ -21,5 +21,7 @@ namespace SamaNetMessaegingAppApi.Services.Interfaces
         Task<BlockStatusResponseDto> UnblockUserAsync(int blockerId, int blockedUserId);
         Task<bool> IsUserBlockedAsync(int blockerId, int blockedUserId);
         Task<IEnumerable<BlockedUserResponseDto>> GetBlockedUsersAsync(int blockerId);
+
+        Task<IEnumerable<UserResponseDto>> GetAllUsersAsync();
     }
 }

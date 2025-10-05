@@ -18,5 +18,7 @@ namespace SamaNetMessaegingAppApi.Repositories.Interfaces
         Task<bool> ExistsAsync(int id);
         Task<bool> UsernameExistsAsync(string username);
         Task<bool> PhoneNumberExistsAsync(string phoneNumber);
+
+        Task<IEnumerable<User>> GetAllAsync();
     }
 }
