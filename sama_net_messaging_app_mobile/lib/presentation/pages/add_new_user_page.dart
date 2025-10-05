@@ -100,7 +100,7 @@ class _AddNewUserPageState extends State<AddNewUserPage> {
         displayName: _displayNameController.text.trim().isEmpty ? null : _displayNameController.text.trim(),
       );
 
-      final response = await _authService.register(registerRequest);
+      final response = await _authService.adminRegister(registerRequest);
 
       if (!mounted) return;
 

@@ -60,6 +60,25 @@ class AuthService {
     }
   }
 
+  /// Register new user account (Admin function - does not change current authentication)
+  /// Used by admins to create new users without switching their own authentication context
+  Future<ApiResponse<AuthResponse>> adminRegister(RegisterRequest request) async {
+    try {
+      final response = await _apiClient.post<AuthResponse>(
+        ApiConstants.register,
+        body: request.toJson(),
+        fromJson: (json) => AuthResponse.fromJson(json),
+      );
+
+      // Note: We don't set auth token or save the user as current user
+      // This preserves the admin's authentication state
+
+      return response;
+    } catch (e) {
+      return ApiResponse.error('Registration failed: ${e.toString()}');
+    }
+  }
+
   /// Search users by phone number
   Future<ApiResponse<List<User>>> searchUsers(String phoneNumber) async {
     try {
