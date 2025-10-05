@@ -149,6 +149,11 @@ namespace SamaNetMessaegingAppApi.Services
             return MapToUserResponseDto(user);
         }
 
+        public async Task<IEnumerable<UserResponseDto>> GetAllUsersAsync()
+        {
+            var users = await _userRepository.GetAllAsync();
+            return users.Select(MapToUserResponseDto);
+        }
         private static UserResponseDto MapToUserResponseDto(User user)
         {
             return new UserResponseDto
@@ -169,5 +174,6 @@ namespace SamaNetMessaegingAppApi.Services
             // In production, use proper JWT tokens
             return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"user_{userId}_{DateTime.UtcNow:yyyyMMddHHmmss}"));
         }
+
     }
 }

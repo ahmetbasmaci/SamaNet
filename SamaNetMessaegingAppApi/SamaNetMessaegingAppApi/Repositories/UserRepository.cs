@@ -88,5 +88,10 @@ namespace SamaNetMessaegingAppApi.Repositories
         {
             return await _context.Users.AnyAsync(u => u.PhoneNumber == phoneNumber);
         }
+
+        public async Task<IEnumerable<User>> GetAllAsync()
+        {
+            return await _context.Users.ToListAsync();
+        }
     }
 }

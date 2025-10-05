@@ -65,7 +65,7 @@ namespace SamaNetMessaegingAppApi.Controllers
         /// </summary>
         [HttpGet("search")]
         public async Task<ActionResult<IEnumerable<UserResponseDto>>> SearchUsers(
-            [FromQuery] string? phoneNumber, 
+            [FromQuery] string? phoneNumber,
             [FromQuery] string? username)
         {
             if (string.IsNullOrWhiteSpace(phoneNumber) && string.IsNullOrWhiteSpace(username))
@@ -74,7 +74,7 @@ namespace SamaNetMessaegingAppApi.Controllers
             }
 
             IEnumerable<UserResponseDto> users;
-            
+
             if (!string.IsNullOrWhiteSpace(username))
             {
                 users = await _userService.SearchUsersByUsernameAsync(username);
@@ -132,6 +132,14 @@ namespace SamaNetMessaegingAppApi.Controllers
             }
 
             return Ok(updatedUser);
+        }
+
+        // get all users - for testing purposes
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<UserResponseDto>>> GetAllUsers()
+        {
+            var users = await _userService.GetAllUsersAsync();
+            return Ok(users);
         }
     }
 }

@@ -15,5 +15,7 @@ namespace SamaNetMessaegingAppApi.Services.Interfaces
         Task<UserResponseDto?> GetUserByIdAsync(int id);
         Task UpdateLastSeenAsync(int userId);
         Task<UserResponseDto?> UpdateAvatarAsync(int userId, string avatarPath);
+
+        Task<IEnumerable<UserResponseDto>> GetAllUsersAsync();
     }
 }
