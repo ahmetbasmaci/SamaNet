@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/arabic_strings.dart';
-import '../../core/utils/validation_utils.dart';
 import '../../core/di/service_locator.dart';
 import '../../data/models/user.dart';
 import '../../data/services/user_service.dart';
@@ -8,7 +7,7 @@ import '../../data/services/local_storage_service.dart';
 import 'messages_page.dart';
 import '../widgets/user_avatar.dart';
 
-/// Search page for finding users by phone number
+/// Search page for finding users by username
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
 
@@ -17,7 +16,7 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
   late LocalStorageService _localStorage;
   late UserService _userService;
 
@@ -40,7 +39,7 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
@@ -64,17 +63,17 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _searchUsers() async {
-    final phoneNumber = _phoneController.text.trim();
-    if (phoneNumber.isEmpty) {
+    final username = _usernameController.text.trim();
+    if (username.isEmpty) {
       setState(() {
-        _errorMessage = ArabicStrings.enterPhoneNumber;
+        _errorMessage = ArabicStrings.enterUsername;
       });
       return;
     }
 
-    if (!ValidationUtils.isNumeric(phoneNumber)) {
+    if (username.length < 4) {
       setState(() {
-        _errorMessage = ArabicStrings.enterValidNameOrPhone;
+        _errorMessage = ArabicStrings.usernameMinLength4;
       });
       return;
     }
@@ -87,7 +86,7 @@ class _SearchPageState extends State<SearchPage> {
 
     try {
       // Real API call
-      final response = await _userService.searchUsersByPhone(phoneNumber);
+      final response = await _userService.searchUsersByUsername(username);
 
       if (response.isSuccess && response.data != null) {
         // Filter out current user from results
@@ -126,79 +125,96 @@ class _SearchPageState extends State<SearchPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text(ArabicStrings.searchUsers), elevation: 0),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      resizeToAvoidBottomInset: false,
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Search instruction
-            Text(
-              ArabicStrings.searchByPhone,
-              style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.7)),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 20),
-
-            // Phone number input
-            TextField(
-              controller: _phoneController,
-              decoration: InputDecoration(
-                labelText: ArabicStrings.enterPhoneNumber,
-                hintText: '+963123456789',
-                prefixIcon: const Icon(Icons.phone),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                errorText: _errorMessage,
-              ),
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _searchUsers(),
-              enabled: !_isSearching,
-            ),
-
-            const SizedBox(height: 16),
-
-            // Search button
-            ElevatedButton.icon(
-              onPressed: _isSearching ? null : _searchUsers,
-              icon: _isSearching
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.search),
-              label: Text(_isSearching ? ArabicStrings.loading : ArabicStrings.search),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Search results
-            if (_hasSearched) ...[
-              Text(
-                ArabicStrings.searchResults,
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Expanded(child: _buildSearchResults(theme)),
-            ] else ...[
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.search, size: 80, color: theme.colorScheme.onSurface.withOpacity(0.3)),
-                      const SizedBox(height: 16),
-                      Text(
-                        'أدخل رقم الهاتف للبحث عن المستخدمين',
-                        style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6)),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+            // Fixed header section
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Search instruction
+                  Text(
+                    ArabicStrings.searchByUsername,
+                    style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                    textAlign: TextAlign.center,
                   ),
-                ),
+
+                  const SizedBox(height: 20),
+
+                  // Username input
+                  TextField(
+                    controller: _usernameController,
+                    decoration: InputDecoration(
+                      labelText: ArabicStrings.enterUsername,
+                      hintText: 'ahmed_123',
+                      prefixIcon: const Icon(Icons.person),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      errorText: _errorMessage,
+                    ),
+                    keyboardType: TextInputType.text,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (_) => _searchUsers(),
+                    enabled: !_isSearching,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Search button
+                  ElevatedButton.icon(
+                    onPressed: _isSearching ? null : _searchUsers,
+                    icon: _isSearching
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.search),
+                    label: Text(_isSearching ? ArabicStrings.loading : ArabicStrings.search),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Search results header
+                  if (_hasSearched)
+                    Text(
+                      ArabicStrings.searchResults,
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  if (_hasSearched) const SizedBox(height: 12),
+                ],
               ),
-            ],
+            ),
+
+            // Expandable content section
+            Expanded(
+              child: _hasSearched
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: _buildSearchResults(theme),
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.search, size: 80, color: theme.colorScheme.onSurface.withOpacity(0.3)),
+                            const SizedBox(height: 16),
+                            Text(
+                              'أدخل اسم المستخدم للبحث عن المستخدمين',
+                              style: theme.textTheme.bodyLarge
+                                  ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+            ),
           ],
         ),
       ),
@@ -251,7 +267,7 @@ class _SearchPageState extends State<SearchPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'تأكد من رقم الهاتف وحاول مرة أخرى',
+              'تأكد من اسم المستخدم وحاول مرة أخرى',
               style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.5)),
               textAlign: TextAlign.center,
             ),

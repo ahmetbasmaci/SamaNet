@@ -61,17 +61,29 @@ namespace SamaNetMessaegingAppApi.Controllers
         }
 
         /// <summary>
-        /// Search users by phone number
+        /// Search users by phone number or username
         /// </summary>
         [HttpGet("search")]
-        public async Task<ActionResult<IEnumerable<UserResponseDto>>> SearchUsers([FromQuery] string phoneNumber)
+        public async Task<ActionResult<IEnumerable<UserResponseDto>>> SearchUsers(
+            [FromQuery] string? phoneNumber, 
+            [FromQuery] string? username)
         {
-            if (string.IsNullOrWhiteSpace(phoneNumber))
+            if (string.IsNullOrWhiteSpace(phoneNumber) && string.IsNullOrWhiteSpace(username))
             {
-                return BadRequest("Phone number is required");
+                return BadRequest("Either phone number or username is required");
             }
 
-            var users = await _userService.SearchUsersByPhoneAsync(phoneNumber);
+            IEnumerable<UserResponseDto> users;
+            
+            if (!string.IsNullOrWhiteSpace(username))
+            {
+                users = await _userService.SearchUsersByUsernameAsync(username);
+            }
+            else
+            {
+                users = await _userService.SearchUsersByPhoneAsync(phoneNumber!);
+            }
+
             return Ok(users);
         }
 

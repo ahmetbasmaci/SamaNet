@@ -42,6 +42,14 @@ namespace SamaNetMessaegingAppApi.Repositories
                 .ToListAsync();
         }
 
+        public async Task<IEnumerable<User>> SearchByUsernameAsync(string username)
+        {
+            return await _context.Users
+                .Where(u => u.Username.Contains(username))
+                .Take(10) // Limit results
+                .ToListAsync();
+        }
+
         public async Task<User> CreateAsync(User user)
         {
             _context.Users.Add(user);

@@ -144,8 +144,8 @@ class AuthBloc extends BaseBloc {
         return;
       }
 
-      if (event.username.length < 3) {
-        emit(AuthError(ArabicStrings.usernameMinLength, errorType: AuthErrorType.validationError));
+      if (event.username.length < 4) {
+        emit(AuthError(ArabicStrings.usernameMinLength4, errorType: AuthErrorType.validationError));
         return;
       }
 

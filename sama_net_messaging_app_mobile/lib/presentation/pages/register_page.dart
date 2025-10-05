@@ -8,12 +8,12 @@ class RegisterPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(ArabicStrings.register)),
-      body: Center(
+      appBar: AppBar(title: const Text(ArabicStrings.register)),
+      body: const Center(
         child: Text(
           ArabicStrings.registerPagePlaceholder,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 18),
+          style: TextStyle(fontSize: 18),
         ),
       ),
     );

@@ -32,6 +32,30 @@ class UserService {
     }
   }
 
+  /// Search users by username
+  Future<ApiResponse<List<User>>> searchUsersByUsername(String username) async {
+    try {
+      final response = await _apiClient.get<List<User>>(
+        '/users/search',
+        queryParams: {'username': username},
+        fromJson: (json) {
+          // API returns a direct list of users, not wrapped in an object
+          if (json is List) {
+            return json.map((userJson) => User.fromJson(userJson as Map<String, dynamic>)).toList();
+          } else {
+            // Fallback: if wrapped in an object, try to extract the list
+            final List<dynamic> usersList = json['users'] ?? json;
+            return usersList.map((userJson) => User.fromJson(userJson as Map<String, dynamic>)).toList();
+          }
+        },
+      );
+
+      return response;
+    } catch (e) {
+      return ApiResponse.error('Failed to search users: ${e.toString()}');
+    }
+  }
+
   /// Get user by ID
   Future<ApiResponse<User>> getUserById(int userId) async {
     try {
