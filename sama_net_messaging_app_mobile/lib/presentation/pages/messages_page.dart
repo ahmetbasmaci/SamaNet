@@ -723,52 +723,122 @@ class _MessagesPageState extends State<MessagesPage> {
   }
 
   void _showAttachmentOptions() {
+    final theme = Theme.of(context);
+
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text(ArabicStrings.camera),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImageFromCamera();
-              },
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.onSurface.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text(ArabicStrings.gallery),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImageFromGallery();
-              },
+            const SizedBox(height: 20),
+
+            // Title
+            Text(
+              'إرسال مرفق',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.videocam),
-              title: const Text('فيديو من الكاميرا'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickVideoFromCamera();
-              },
+            const SizedBox(height: 24),
+
+            // Options Grid
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildAttachmentOption(
+                  context: context,
+                  icon: Icons.camera_alt,
+                  label: 'كاميرا',
+                  color: Colors.purple,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImageFromCamera();
+                  },
+                ),
+                _buildAttachmentOption(
+                  context: context,
+                  icon: Icons.videocam,
+                  label: 'فيديو',
+                  color: Colors.red,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickVideoFromCamera();
+                  },
+                ),
+                _buildAttachmentOption(
+                  context: context,
+                  icon: Icons.insert_drive_file,
+                  label: 'ملف',
+                  color: Colors.blue,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickFile();
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.video_library),
-              title: const Text('فيديو من المعرض'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickVideoFromGallery();
-              },
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttachmentOption({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 90,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: color,
+                size: 28,
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.insert_drive_file),
-              title: const Text(ArabicStrings.selectFile),
-              onTap: () {
-                Navigator.pop(context);
-                _pickFile();
-              },
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -778,6 +848,12 @@ class _MessagesPageState extends State<MessagesPage> {
 
   /// Pick image from camera
   Future<void> _pickImageFromCamera() async {
+    // Prevent double-sending
+    if (_isUploadingFile) {
+      debugPrint('[MessagesPage::_pickImageFromCamera] Already uploading a file, ignoring request');
+      return;
+    }
+
     try {
       // Request camera permission
       final cameraStatus = await Permission.camera.request();
@@ -804,6 +880,12 @@ class _MessagesPageState extends State<MessagesPage> {
 
   /// Pick image from gallery
   Future<void> _pickImageFromGallery() async {
+    // Prevent double-sending
+    if (_isUploadingFile) {
+      debugPrint('[MessagesPage::_pickImageFromGallery] Already uploading a file, ignoring request');
+      return;
+    }
+
     try {
       // Request photo permission
       final photoStatus = await Permission.photos.request();
@@ -830,6 +912,12 @@ class _MessagesPageState extends State<MessagesPage> {
 
   /// Pick video from camera
   Future<void> _pickVideoFromCamera() async {
+    // Prevent double-sending
+    if (_isUploadingFile) {
+      debugPrint('[MessagesPage::_pickVideoFromCamera] Already uploading a file, ignoring request');
+      return;
+    }
+
     try {
       // Request camera permission
       final cameraStatus = await Permission.camera.request();
@@ -854,6 +942,12 @@ class _MessagesPageState extends State<MessagesPage> {
 
   /// Pick video from gallery
   Future<void> _pickVideoFromGallery() async {
+    // Prevent double-sending
+    if (_isUploadingFile) {
+      debugPrint('[MessagesPage::_pickVideoFromGallery] Already uploading a file, ignoring request');
+      return;
+    }
+
     try {
       // Request photo permission
       final photoStatus = await Permission.photos.request();
@@ -878,6 +972,12 @@ class _MessagesPageState extends State<MessagesPage> {
 
   /// Pick file from device
   Future<void> _pickFile() async {
+    // Prevent double-sending
+    if (_isUploadingFile) {
+      debugPrint('[MessagesPage::_pickFile] Already uploading a file, ignoring request');
+      return;
+    }
+
     try {
       // Request storage permission
       final storageStatus = await Permission.storage.request();
@@ -924,7 +1024,7 @@ class _MessagesPageState extends State<MessagesPage> {
 
     String captionText = '';
 
-    final caption = await showModalBottomSheet<String>(
+    final caption = await showModalBottomSheet<String?>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) {
@@ -970,7 +1070,7 @@ class _MessagesPageState extends State<MessagesPage> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => Navigator.of(sheetContext).pop(),
+                              onPressed: () => Navigator.of(sheetContext).pop(null),
                               child: const Text(ArabicStrings.cancel),
                             ),
                           ),
@@ -997,12 +1097,19 @@ class _MessagesPageState extends State<MessagesPage> {
       return; // User cancelled.
     }
 
-    await _uploadAndSendFile(filePath, messageType, caption: caption);
+    // Pass empty string if caption is empty, so we don't add file description
+    await _uploadAndSendFile(filePath, messageType, caption: caption.isEmpty ? '' : caption);
   }
 
   /// Upload file and send message
   Future<void> _uploadAndSendFile(String filePath, String messageType, {String? caption}) async {
     if (_currentUser == null) return;
+
+    // Prevent double-sending
+    if (_isUploadingFile) {
+      debugPrint('[MessagesPage::_uploadAndSendFile] Already uploading a file, aborting');
+      return;
+    }
 
     setState(() => _isUploadingFile = true);
 
@@ -1015,9 +1122,11 @@ class _MessagesPageState extends State<MessagesPage> {
         }
       }
 
+      final messageContent = _resolveAttachmentCaption(filePath, messageType, caption);
+
       final messageResponse = await _messageService.sendMessageWithAttachment(
         receiverId: widget.chatUser.id,
-        content: _resolveAttachmentCaption(filePath, messageType, caption),
+        content: messageContent, // Send as-is, empty is now allowed by API
         messageType: messageType,
         filePath: filePath,
       );
@@ -1037,15 +1146,29 @@ class _MessagesPageState extends State<MessagesPage> {
       debugPrintStack(stackTrace: stackTrace);
       _showErrorSnackBar('خطأ في إرسال الملف: ${e.toString()}');
     } finally {
-      setState(() => _isUploadingFile = false);
+      if (mounted) {
+        setState(() => _isUploadingFile = false);
+      }
     }
   }
 
   String _resolveAttachmentCaption(String filePath, String messageType, String? caption) {
+    // If caption is explicitly empty string (user chose to send without caption), return empty
+    if (caption == '') {
+      return '';
+    }
+
     final trimmed = caption?.trim() ?? '';
     if (trimmed.isNotEmpty) {
       return trimmed;
     }
+
+    // For images with no caption, return empty string
+    // For other files (videos, documents), return file description
+    if (messageType == 'image') {
+      return '';
+    }
+
     return _getFileDescription(filePath, messageType);
   }
 

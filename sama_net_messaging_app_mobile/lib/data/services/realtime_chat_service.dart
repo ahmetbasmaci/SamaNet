@@ -84,15 +84,39 @@ class RealtimeChatService {
 
       await _connection!.start();
       await _connection!.invoke('JoinChat', args: <Object?>[userId]);
+
+      if (kDebugMode) {
+        debugPrint('[SignalR] Successfully connected for user $userId');
+      }
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[SignalR] Connection failed: $e');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+      // Clean up on error
+      await _disposeConnection();
+      rethrow;
     } finally {
       _isConnecting = false;
     }
   }
 
   Future<void> _waitForConnection() async {
+    const maxWaitTime = Duration(seconds: 10);
+    final stopwatch = Stopwatch()..start();
+
     while (_isConnecting) {
+      if (stopwatch.elapsed >= maxWaitTime) {
+        if (kDebugMode) {
+          debugPrint('[SignalR] Wait for connection timed out after ${stopwatch.elapsed.inSeconds}s');
+        }
+        _isConnecting = false; // Force reset the flag
+        throw TimeoutException('Connection attempt timed out');
+      }
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
+
+    stopwatch.stop();
   }
 
   Future<void> _disposeConnection() async {

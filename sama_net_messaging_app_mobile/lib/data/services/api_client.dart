@@ -269,7 +269,10 @@ class ApiClient {
         // Error response - handle both object and string responses
         String errorMessage;
         if (responseData is Map<String, dynamic>) {
-          errorMessage = responseData['message'] ?? responseData['error'] ?? 'Request failed with status $statusCode';
+          var title = responseData['title'] ?? '';
+          var errors = responseData['errors'] ?? '';
+
+          errorMessage = title + (errors.isNotEmpty ? '\n\t- $errors \n\t-' : '') + ' (status code: $statusCode)';
         } else {
           errorMessage = responseData.toString();
         }

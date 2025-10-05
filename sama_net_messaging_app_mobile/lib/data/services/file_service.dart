@@ -1,10 +1,14 @@
 import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import '../../core/constants/app_constants.dart';
 import 'api_client.dart';
 
 /// File service for handling file upload, download, and management
 class FileService {
   final ApiClient _apiClient;
+  final Dio _dio = Dio();
 
   FileService(this._apiClient);
 
@@ -28,18 +32,72 @@ class FileService {
   }
 
   /// Download file from server
-  Future<ApiResponse<List<int>>> downloadFile(String serverFilePath) async {
+  Future<ApiResponse<String>> downloadFile(
+    String serverFilePath, {
+    void Function(int received, int total)? onProgress,
+  }) async {
     try {
-      // For file downloads, we need to handle binary data differently
-      // This is a simplified implementation - in practice you might want to use dio or http package
-      final response = await _apiClient.get<List<int>>(
-        ApiConstants.downloadFile,
-        queryParams: {'filePath': serverFilePath},
-        fromJson: (json) => [], // Binary data handling would be different
-      );
-      return response;
+      // Get the downloads directory
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = await getExternalStorageDirectory();
+      } else if (Platform.isIOS) {
+        directory = await getApplicationDocumentsDirectory();
+      } else {
+        directory = await getDownloadsDirectory();
+      }
+
+      if (directory == null) {
+        return ApiResponse.error('فشل في العثور على مجلد التنزيلات');
+      }
+
+      // Create a "SamaNet" folder in downloads
+      final samaNetDir = Directory('${directory.path}/SamaNet');
+      if (!await samaNetDir.exists()) {
+        await samaNetDir.create(recursive: true);
+      }
+
+      // Get the file name from server path
+      final fileName = serverFilePath.split('/').last;
+      final filePath = path.join(samaNetDir.path, fileName);
+
+      // Check if file already exists
+      final file = File(filePath);
+      if (await file.exists()) {
+        // Add timestamp to make filename unique
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final extension = path.extension(fileName);
+        final baseName = path.basenameWithoutExtension(fileName);
+        final newFileName = '${baseName}_$timestamp$extension';
+        final newFilePath = path.join(samaNetDir.path, newFileName);
+        return await _downloadFileWithDio(serverFilePath, newFilePath, onProgress);
+      }
+
+      return await _downloadFileWithDio(serverFilePath, filePath, onProgress);
     } catch (e) {
-      return ApiResponse.error('Failed to download file: ${e.toString()}');
+      return ApiResponse.error('فشل في تحميل الملف: ${e.toString()}');
+    }
+  }
+
+  /// Internal method to download file using Dio
+  Future<ApiResponse<String>> _downloadFileWithDio(
+    String serverFilePath,
+    String savePath,
+    void Function(int received, int total)? onProgress,
+  ) async {
+    try {
+      final baseUrl = _apiClient.baseUrl;
+      final downloadUrl = '$baseUrl${ApiConstants.streamFile}?filePath=${Uri.encodeComponent(serverFilePath)}';
+
+      await _dio.download(
+        downloadUrl,
+        savePath,
+        onReceiveProgress: onProgress,
+      );
+
+      return ApiResponse.success(savePath);
+    } catch (e) {
+      return ApiResponse.error('فشل في تحميل الملف: ${e.toString()}');
     }
   }
 

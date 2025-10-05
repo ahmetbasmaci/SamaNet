@@ -24,8 +24,7 @@ namespace SamaNetMessaegingAppApi.DTOs
         [Required]
         public int ReceiverId { get; set; }
 
-        [Required]
-        public string Content { get; set; }
+        public string? Content { get; set; }
 
         public string MessageType { get; set; } = "file";
     }

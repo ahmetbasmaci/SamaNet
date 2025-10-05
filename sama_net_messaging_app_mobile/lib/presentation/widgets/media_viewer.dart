@@ -3,7 +3,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
 import '../../data/models/message.dart';
 import '../../data/services/file_service.dart';
+import '../../data/services/notification_service.dart';
 import '../../core/di/service_locator.dart';
+import 'notification_permission_dialog.dart';
 
 /// Media viewer widget for images, videos, and audio files
 class MediaViewer extends StatefulWidget {
@@ -23,7 +25,10 @@ class MediaViewer extends StatefulWidget {
 class _MediaViewerState extends State<MediaViewer> {
   VideoPlayerController? _videoController;
   bool _isVideoInitialized = false;
+  bool _isDownloading = false;
+  double _downloadProgress = 0.0;
   final FileService _fileService = serviceLocator.get<FileService>();
+  final NotificationService _notificationService = serviceLocator.get<NotificationService>();
 
   @override
   void initState() {
@@ -40,16 +45,56 @@ class _MediaViewerState extends State<MediaViewer> {
   }
 
   void _initializeVideoPlayer() async {
-    final videoUrl = _fileService.getStreamUrl(widget.attachment.filePath);
-    _videoController = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
-
     try {
-      await _videoController!.initialize();
-      setState(() {
-        _isVideoInitialized = true;
+      final videoUrl = _fileService.getStreamUrl(widget.attachment.filePath);
+      debugPrint('[MediaViewer] Initializing video player with URL: $videoUrl');
+
+      // Create video controller with network URL
+      _videoController = VideoPlayerController.networkUrl(
+        Uri.parse(videoUrl),
+        httpHeaders: {
+          'Accept': 'video/*',
+        },
+      );
+
+      // Add listener for errors during playback
+      _videoController!.addListener(() {
+        if (_videoController!.value.hasError) {
+          debugPrint('[MediaViewer] Video player error during playback: ${_videoController!.value.errorDescription}');
+        }
       });
+
+      await _videoController!.initialize();
+
+      if (mounted) {
+        setState(() {
+          _isVideoInitialized = true;
+        });
+      }
+
+      debugPrint('[MediaViewer] Video player initialized successfully');
     } catch (e) {
-      print('Error initializing video player: $e');
+      debugPrint('[MediaViewer] Error initializing video player: $e');
+
+      if (mounted) {
+        setState(() {
+          _isVideoInitialized = false;
+        });
+
+        // Show error message to user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في تحميل الفيديو: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'تحميل',
+              textColor: Colors.white,
+              onPressed: () => _downloadFile(),
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -65,10 +110,24 @@ class _MediaViewerState extends State<MediaViewer> {
           style: const TextStyle(color: Colors.white),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.download, color: Colors.white),
-            onPressed: () => _downloadFile(),
-          ),
+          if (_isDownloading)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  value: _downloadProgress,
+                  strokeWidth: 2,
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.download, color: Colors.white),
+              onPressed: () => _downloadFile(),
+            ),
         ],
       ),
       body: Center(
@@ -120,60 +179,102 @@ class _MediaViewerState extends State<MediaViewer> {
   }
 
   Widget _buildVideoViewer() {
+    // Show error state if video controller has error or initialization failed
+    if (_videoController?.value.hasError ?? false) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            const Text(
+              'خطأ في تشغيل الفيديو',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Text(
+                _videoController?.value.errorDescription ?? 'حدث خطأ غير متوقع',
+                style: const TextStyle(color: Colors.white54, fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _downloadFile(),
+              icon: const Icon(Icons.download),
+              label: const Text('تحميل الفيديو'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (!_isVideoInitialized || _videoController == null) {
       return const Center(
         child: CircularProgressIndicator(color: Colors.white),
       );
     }
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        AspectRatio(
-          aspectRatio: _videoController!.value.aspectRatio,
-          child: VideoPlayer(_videoController!),
-        ),
-        const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: Icon(
-                _videoController!.value.isPlaying ? Icons.pause : Icons.play_arrow,
-                color: Colors.white,
-                size: 32,
-              ),
-              onPressed: () {
-                setState(() {
-                  if (_videoController!.value.isPlaying) {
-                    _videoController!.pause();
-                  } else {
-                    _videoController!.play();
-                  }
-                });
-              },
-            ),
-            const SizedBox(width: 20),
-            IconButton(
-              icon: const Icon(Icons.replay, color: Colors.white, size: 32),
-              onPressed: () {
-                _videoController!.seekTo(Duration.zero);
-                _videoController!.play();
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        VideoProgressIndicator(
-          _videoController!,
-          allowScrubbing: true,
-          colors: const VideoProgressColors(
-            playedColor: Colors.blue,
-            bufferedColor: Colors.grey,
-            backgroundColor: Colors.white24,
+    // Wrap in SingleChildScrollView to prevent overflow
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AspectRatio(
+            aspectRatio: _videoController!.value.aspectRatio,
+            child: VideoPlayer(_videoController!),
           ),
-        ),
-      ],
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: Icon(
+                  _videoController!.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                  color: Colors.white,
+                  size: 32,
+                ),
+                onPressed: () {
+                  setState(() {
+                    if (_videoController!.value.isPlaying) {
+                      _videoController!.pause();
+                    } else {
+                      _videoController!.play();
+                    }
+                  });
+                },
+              ),
+              const SizedBox(width: 20),
+              IconButton(
+                icon: const Icon(Icons.replay, color: Colors.white, size: 32),
+                onPressed: () {
+                  _videoController!.seekTo(Duration.zero);
+                  _videoController!.play();
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: VideoProgressIndicator(
+              _videoController!,
+              allowScrubbing: true,
+              colors: const VideoProgressColors(
+                playedColor: Colors.blue,
+                bufferedColor: Colors.grey,
+                backgroundColor: Colors.white24,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20), // Add bottom padding
+        ],
+      ),
     );
   }
 
@@ -236,11 +337,22 @@ class _MediaViewerState extends State<MediaViewer> {
             style: const TextStyle(color: Colors.white54, fontSize: 14),
           ),
           const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _downloadFile(),
-            icon: const Icon(Icons.download),
-            label: const Text('تحميل'),
-          ),
+          _isDownloading
+              ? Column(
+                  children: [
+                    CircularProgressIndicator(value: _downloadProgress),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${(_downloadProgress * 100).toStringAsFixed(0)}%',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                )
+              : ElevatedButton.icon(
+                  onPressed: () => _downloadFile(),
+                  icon: const Icon(Icons.download),
+                  label: const Text('تحميل'),
+                ),
         ],
       ),
     );
@@ -271,9 +383,107 @@ class _MediaViewerState extends State<MediaViewer> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} ميجابايت';
   }
 
-  void _downloadFile() {
-    // TODO: Implement file download functionality
-    _showNotImplementedSnackBar('تحميل الملف');
+  void _downloadFile() async {
+    if (_isDownloading) return;
+
+    setState(() {
+      _isDownloading = true;
+      _downloadProgress = 0.0;
+    });
+
+    // Get file name for notification
+    final fileName = widget.attachment.filePath.split('/').last;
+
+    try {
+      final result = await _fileService.downloadFile(
+        widget.attachment.filePath,
+        onProgress: (received, total) {
+          if (total > 0) {
+            setState(() {
+              _downloadProgress = received / total;
+            });
+          }
+        },
+      );
+
+      if (result.isSuccess && result.data != null) {
+        // Check if notification permission is granted
+        final notificationEnabled = await _notificationService.areNotificationsEnabled();
+
+        // Show local notification if permission granted
+        if (notificationEnabled) {
+          await _notificationService.showDownloadCompleteNotification(
+            fileName: fileName,
+            filePath: result.data!,
+          );
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                notificationEnabled ? 'تم تحميل الملف بنجاح. اضغط على الإشعار للفتح' : 'تم تحميل الملف بنجاح',
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+              action: SnackBarAction(
+                label: 'فتح',
+                textColor: Colors.white,
+                onPressed: () {
+                  _notificationService.openFile(result.data!);
+                },
+              ),
+            ),
+          );
+
+          // If notification permission not granted, show option to enable
+          if (!notificationEnabled) {
+            Future.delayed(const Duration(seconds: 1), () {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('قم بتفعيل الإشعارات لتلقي تنبيهات التحميل'),
+                    backgroundColor: Colors.orange,
+                    action: SnackBarAction(
+                      label: 'تفعيل',
+                      textColor: Colors.white,
+                      onPressed: () {
+                        NotificationPermissionDialog.show(context);
+                      },
+                    ),
+                  ),
+                );
+              }
+            });
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.error ?? 'فشل في تحميل الملف'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+          _downloadProgress = 0.0;
+        });
+      }
+    }
   }
 
   void _showNotImplementedSnackBar(String feature) {
