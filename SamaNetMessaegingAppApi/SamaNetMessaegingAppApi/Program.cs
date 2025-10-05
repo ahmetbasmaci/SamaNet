@@ -70,6 +70,7 @@ namespace SamaNetMessaegingAppApi
             services.AddScoped<IMessageRepository, MessageRepository>();
             services.AddScoped<IAttachmentRepository, AttachmentRepository>();
             services.AddScoped<IMessageDeletionRepository, MessageDeletionRepository>();
+            services.AddScoped<IUserBlockRepository, UserBlockRepository>();
 
             // Register services
             services.AddScoped<IUserService, UserService>();
@@ -185,16 +186,16 @@ namespace SamaNetMessaegingAppApi
                 using var scope = app.Services.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
 
-                // Ensure database is created
-                context.Database.EnsureCreated();
+                // Apply pending migrations - this will create the database if it doesn't exist
+                context.Database.Migrate();
 
                 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-                logger.LogInformation("Database initialized successfully");
+                logger.LogInformation("Database migrations applied successfully");
             }
             catch (Exception ex)
             {
                 var logger = app.Services.GetRequiredService<ILogger<Program>>();
-                logger.LogError(ex, "An error occurred while initializing the database");
+                logger.LogError(ex, "An error occurred while applying database migrations");
                 throw;
             }
         }

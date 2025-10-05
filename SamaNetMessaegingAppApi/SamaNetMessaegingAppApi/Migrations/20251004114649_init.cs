@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace SamaNetMessaegingAppApi.Migrations
 {
     /// <inheritdoc />
-    public partial class AddMessageDeletionTable : Migration
+    public partial class init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -21,6 +21,7 @@ namespace SamaNetMessaegingAppApi.Migrations
                     PasswordHash = table.Column<string>(type: "TEXT", nullable: false),
                     PhoneNumber = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
                     DisplayName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                    AvatarPath = table.Column<string>(type: "TEXT", maxLength: 255, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     LastSeen = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
@@ -55,6 +56,33 @@ namespace SamaNetMessaegingAppApi.Migrations
                     table.ForeignKey(
                         name: "FK_Messages_Users_SenderId",
                         column: x => x.SenderId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "UserBlocks",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    BlockerId = table.Column<int>(type: "INTEGER", nullable: false),
+                    BlockedUserId = table.Column<int>(type: "INTEGER", nullable: false),
+                    BlockedAt = table.Column<DateTime>(type: "TEXT", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserBlocks", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_UserBlocks_Users_BlockedUserId",
+                        column: x => x.BlockedUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_UserBlocks_Users_BlockerId",
+                        column: x => x.BlockerId,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -141,6 +169,22 @@ namespace SamaNetMessaegingAppApi.Migrations
                 column: "SenderId");
 
             migrationBuilder.CreateIndex(
+                name: "IDX_UserBlocks_Blocked",
+                table: "UserBlocks",
+                column: "BlockedUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IDX_UserBlocks_Blocker",
+                table: "UserBlocks",
+                column: "BlockerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IDX_UserBlocks_Unique",
+                table: "UserBlocks",
+                columns: new[] { "BlockerId", "BlockedUserId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IDX_Users_Phone",
                 table: "Users",
                 column: "PhoneNumber",
@@ -155,6 +199,9 @@ namespace SamaNetMessaegingAppApi.Migrations
 
             migrationBuilder.DropTable(
                 name: "MessageDeletions");
+
+            migrationBuilder.DropTable(
+                name: "UserBlocks");
 
             migrationBuilder.DropTable(
                 name: "Messages");

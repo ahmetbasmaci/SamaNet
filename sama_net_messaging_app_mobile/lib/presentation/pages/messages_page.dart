@@ -12,6 +12,7 @@ import '../../data/services/local_storage_service.dart';
 import '../../data/services/message_status_service.dart';
 import '../../data/services/file_service.dart';
 import '../../data/services/realtime_chat_service.dart';
+import '../../data/services/user_block_service.dart';
 import '../widgets/message_bubble.dart';
 import '../../core/di/service_locator.dart';
 import '../../core/services/conversation_update_notifier.dart';
@@ -38,6 +39,7 @@ class _MessagesPageState extends State<MessagesPage> {
   late FileService _fileService;
   late ConversationUpdateNotifier _updateNotifier;
   late RealtimeChatService _realtimeChatService;
+  late UserBlockService _userBlockService;
   StreamSubscription<Message>? _messageReceivedSubscription;
   StreamSubscription<Message>? _messageSentSubscription;
   StreamSubscription<MessageDeliveryUpdate>? _messageDeliveredSubscription;
@@ -69,6 +71,7 @@ class _MessagesPageState extends State<MessagesPage> {
     _fileService = serviceLocator.get<FileService>();
     _updateNotifier = serviceLocator.get<ConversationUpdateNotifier>();
     _realtimeChatService = serviceLocator.get<RealtimeChatService>();
+    _userBlockService = serviceLocator.get<UserBlockService>();
   }
 
   @override
@@ -1256,24 +1259,77 @@ class _MessagesPageState extends State<MessagesPage> {
     );
   }
 
-  void _blockUser() {
-    showDialog(
+  void _blockUser() async {
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('حظر المستخدم'),
-        content: Text('هل تريد حظر ${widget.chatUser.name}؟'),
+        content: Text('هل تريد حظر ${widget.chatUser.name}؟ لن تتمكن من إرسال أو استقبال رسائل من هذا المستخدم.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text(ArabicStrings.cancel)),
           TextButton(
-            onPressed: () {
-              // Implement block functionality
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: const Text('حظر'),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(ArabicStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('حظر', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
+
+    if (confirm != true || _currentUser == null) return;
+
+    try {
+      // Show loading indicator
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(child: CircularProgressIndicator()),
+        );
+      }
+
+      final response = await _userBlockService.blockUser(
+        blockerId: _currentUser!.id,
+        blockedUserId: widget.chatUser.id,
+      );
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+      }
+
+      if (response.isSuccess && response.data != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.data!.message),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Close the messages page
+          Navigator.pop(context);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.error ?? 'فشل حظر المستخدم'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في حظر المستخدم: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

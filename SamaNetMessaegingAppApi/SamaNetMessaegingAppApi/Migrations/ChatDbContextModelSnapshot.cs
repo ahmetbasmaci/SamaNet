@@ -126,6 +126,10 @@ namespace SamaNetMessaegingAppApi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("AvatarPath")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT")
@@ -133,10 +137,6 @@ namespace SamaNetMessaegingAppApi.Migrations
 
                     b.Property<string>("DisplayName")
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("AvatarPath")
-                        .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("LastSeen")
@@ -163,6 +163,38 @@ namespace SamaNetMessaegingAppApi.Migrations
                         .HasDatabaseName("IDX_Users_Phone");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("SamaNetMessaegingAppApi.Models.UserBlock", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("BlockedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int>("BlockedUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BlockerId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlockedUserId")
+                        .HasDatabaseName("IDX_UserBlocks_Blocked");
+
+                    b.HasIndex("BlockerId")
+                        .HasDatabaseName("IDX_UserBlocks_Blocker");
+
+                    b.HasIndex("BlockerId", "BlockedUserId")
+                        .IsUnique()
+                        .HasDatabaseName("IDX_UserBlocks_Unique");
+
+                    b.ToTable("UserBlocks");
                 });
 
             modelBuilder.Entity("SamaNetMessaegingAppApi.Models.Attachment", b =>
@@ -212,6 +244,25 @@ namespace SamaNetMessaegingAppApi.Migrations
                     b.Navigation("Message");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SamaNetMessaegingAppApi.Models.UserBlock", b =>
+                {
+                    b.HasOne("SamaNetMessaegingAppApi.Models.User", "BlockedUser")
+                        .WithMany()
+                        .HasForeignKey("BlockedUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SamaNetMessaegingAppApi.Models.User", "Blocker")
+                        .WithMany()
+                        .HasForeignKey("BlockerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BlockedUser");
+
+                    b.Navigation("Blocker");
                 });
 
             modelBuilder.Entity("SamaNetMessaegingAppApi.Models.Message", b =>

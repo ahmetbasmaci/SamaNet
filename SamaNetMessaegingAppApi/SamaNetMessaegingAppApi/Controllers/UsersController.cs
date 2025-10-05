@@ -133,5 +133,56 @@ namespace SamaNetMessaegingAppApi.Controllers
 
             return Ok(updatedUser);
         }
+
+        /// <summary>
+        /// Block a user
+        /// </summary>
+        [HttpPost("{blockerId}/block")]
+        public async Task<ActionResult<BlockStatusResponseDto>> BlockUser(int blockerId, [FromBody] BlockUserRequestDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var result = await _userService.BlockUserAsync(blockerId, request.BlockedUserId);
+
+            if (result.IsBlocked)
+            {
+                return Ok(result);
+            }
+
+            return BadRequest(result);
+        }
+
+        /// <summary>
+        /// Unblock a user
+        /// </summary>
+        [HttpDelete("{blockerId}/unblock/{blockedUserId}")]
+        public async Task<ActionResult<BlockStatusResponseDto>> UnblockUser(int blockerId, int blockedUserId)
+        {
+            var result = await _userService.UnblockUserAsync(blockerId, blockedUserId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Check if a user is blocked
+        /// </summary>
+        [HttpGet("{blockerId}/is-blocked/{blockedUserId}")]
+        public async Task<ActionResult<bool>> IsUserBlocked(int blockerId, int blockedUserId)
+        {
+            var isBlocked = await _userService.IsUserBlockedAsync(blockerId, blockedUserId);
+            return Ok(isBlocked);
+        }
+
+        /// <summary>
+        /// Get list of blocked users
+        /// </summary>
+        [HttpGet("{blockerId}/blocked-users")]
+        public async Task<ActionResult<IEnumerable<BlockedUserResponseDto>>> GetBlockedUsers(int blockerId)
+        {
+            var blockedUsers = await _userService.GetBlockedUsersAsync(blockerId);
+            return Ok(blockedUsers);
+        }
     }
 }

@@ -8,6 +8,7 @@ import '../../data/services/chat_service.dart';
 import '../../data/services/message_status_service.dart';
 import '../../data/services/realtime_chat_service.dart';
 import '../../data/services/notification_service.dart';
+import '../../data/services/user_block_service.dart';
 import '../../presentation/blocs/auth_bloc.dart';
 import '../constants/app_constants.dart';
 import '../services/conversation_update_notifier.dart';
@@ -86,6 +87,8 @@ Future<void> initializeDependencies() async {
   serviceLocator.registerSingleton<FileService>(FileService(serviceLocator.get<ApiClient>()));
 
   serviceLocator.registerSingleton<ChatService>(ChatService(serviceLocator.get<ApiClient>()));
+
+  serviceLocator.registerSingleton<UserBlockService>(UserBlockService(serviceLocator.get<ApiClient>()));
 
   // Message status service
   serviceLocator.registerSingleton<MessageStatusService>(

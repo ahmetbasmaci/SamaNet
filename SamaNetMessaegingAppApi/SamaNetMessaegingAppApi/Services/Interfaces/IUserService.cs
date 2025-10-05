@@ -15,5 +15,11 @@ namespace SamaNetMessaegingAppApi.Services.Interfaces
         Task<UserResponseDto?> GetUserByIdAsync(int id);
         Task UpdateLastSeenAsync(int userId);
         Task<UserResponseDto?> UpdateAvatarAsync(int userId, string avatarPath);
+        
+        // Block/Unblock operations
+        Task<BlockStatusResponseDto> BlockUserAsync(int blockerId, int blockedUserId);
+        Task<BlockStatusResponseDto> UnblockUserAsync(int blockerId, int blockedUserId);
+        Task<bool> IsUserBlockedAsync(int blockerId, int blockedUserId);
+        Task<IEnumerable<BlockedUserResponseDto>> GetBlockedUsersAsync(int blockerId);
     }
 }

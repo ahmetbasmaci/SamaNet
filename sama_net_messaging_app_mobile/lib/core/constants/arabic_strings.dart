@@ -112,6 +112,19 @@ class ArabicStrings {
   static const String gallery = 'المعرض';
   static const String attachment = 'مرفق';
 
+  // Block User
+  static const String blockUser = 'حظر المستخدم';
+  static const String unblockUser = 'إلغاء حظر المستخدم';
+  static const String blockUserConfirm = 'هل تريد حظر هذا المستخدم؟';
+  static const String unblockUserConfirm = 'هل تريد إلغاء حظر هذا المستخدم؟';
+  static const String userBlocked = 'تم حظر المستخدم بنجاح';
+  static const String userUnblocked = 'تم إلغاء حظر المستخدم بنجاح';
+  static const String blockUserFailed = 'فشل حظر المستخدم';
+  static const String unblockUserFailed = 'فشل إلغاء حظر المستخدم';
+  static const String blockedUsers = 'المستخدمون المحظورون';
+  static const String noBlockedUsers = 'لا يوجد مستخدمون محظورون';
+  static const String cannotSendToBlockedUser = 'لا يمكن إرسال رسائل لمستخدم محظور';
+
   // Date and Time
   static const String today = 'اليوم';
   static const String yesterday = 'أمس';

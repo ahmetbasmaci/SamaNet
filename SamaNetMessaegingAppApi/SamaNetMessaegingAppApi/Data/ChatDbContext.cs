@@ -16,6 +16,7 @@ namespace SamaNetMessaegingAppApi.Data
         public DbSet<Message> Messages { get; set; }
         public DbSet<Attachment> Attachments { get; set; }
         public DbSet<MessageDeletion> MessageDeletions { get; set; }
+        public DbSet<UserBlock> UserBlocks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -100,6 +101,33 @@ namespace SamaNetMessaegingAppApi.Data
                 // Add indexes for performance
                 entity.HasIndex(e => e.MessageId).HasDatabaseName("IDX_MessageDeletions_Message");
                 entity.HasIndex(e => e.UserId).HasDatabaseName("IDX_MessageDeletions_User");
+            });
+
+            // Configure UserBlock entity
+            modelBuilder.Entity<UserBlock>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.BlockedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                // Configure relationships
+                entity.HasOne(e => e.Blocker)
+                    .WithMany()
+                    .HasForeignKey(e => e.BlockerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.BlockedUser)
+                    .WithMany()
+                    .HasForeignKey(e => e.BlockedUserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Ensure unique constraint - one block record per blocker-blocked pair
+                entity.HasIndex(e => new { e.BlockerId, e.BlockedUserId })
+                    .IsUnique()
+                    .HasDatabaseName("IDX_UserBlocks_Unique");
+
+                // Add indexes for performance
+                entity.HasIndex(e => e.BlockerId).HasDatabaseName("IDX_UserBlocks_Blocker");
+                entity.HasIndex(e => e.BlockedUserId).HasDatabaseName("IDX_UserBlocks_Blocked");
             });
         }
     }
