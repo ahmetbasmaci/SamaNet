@@ -208,6 +208,7 @@ namespace SamaNetMessaegingAppApi.Services
             // Group messages by conversation partner
             var conversationGroups = filteredMessages
                 .GroupBy(m => m.SenderId == userId ? m.ReceiverId : m.SenderId)
+                .Where(g => g.Key != userId) // Exclude conversations with self
                 .Select(g => new
                 {
                     OtherUserId = g.Key,
