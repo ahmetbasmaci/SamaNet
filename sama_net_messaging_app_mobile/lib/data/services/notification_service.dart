@@ -13,6 +13,13 @@ class NotificationService {
   bool _isInitialized = false;
   String? _lastDownloadedFilePath;
 
+  // Track message notifications for grouping
+  final Map<int, List<String>> _userMessages = {}; // userId -> list of messages
+  final Map<int, String> _userNames = {}; // userId -> username
+
+  // Track active conversations to prevent notifications
+  int? _activeConversationUserId;
+
   /// Initialize the notification service
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -183,6 +190,123 @@ class NotificationService {
     await _notifications.cancel(id);
   }
 
+  /// Show notification for new message
+  Future<void> showMessageNotification({
+    required int senderId,
+    required String senderName,
+    required String messageContent,
+    required int unreadCount,
+  }) async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+
+    // Store message for this user
+    if (!_userMessages.containsKey(senderId)) {
+      _userMessages[senderId] = [];
+      _userNames[senderId] = senderName;
+    }
+    _userMessages[senderId]!.add(messageContent);
+
+    // Create inbox style notification (like WhatsApp)
+    final messages = _userMessages[senderId]!;
+    final inboxLines = messages.map((msg) => msg).toList();
+
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'message_channel',
+      'رسائل جديدة',
+      channelDescription: 'إشعارات الرسائل الواردة',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+      icon: '@mipmap/ic_launcher',
+      styleInformation: InboxStyleInformation(
+        inboxLines,
+        contentTitle: '$unreadCount رسالة جديدة',
+        summaryText: senderName,
+      ),
+      enableVibration: true,
+      playSound: true,
+    );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      badgeNumber: 1,
+    );
+
+    final NotificationDetails notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    // Use senderId as notification ID so messages from same user update the notification
+    await _notifications.show(
+      senderId,
+      senderName,
+      messageContent,
+      notificationDetails,
+      payload: 'message_$senderId',
+    );
+  }
+
+  /// Show summary notification for multiple conversations
+  Future<void> showMessagesSummaryNotification({
+    required int totalUnreadCount,
+    required int conversationCount,
+  }) async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'message_channel',
+      'رسائل جديدة',
+      channelDescription: 'إشعارات الرسائل الواردة',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+      icon: '@mipmap/ic_launcher',
+      enableVibration: true,
+      playSound: true,
+    );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const NotificationDetails notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _notifications.show(
+      0, // Use ID 0 for summary
+      'رسائل جديدة',
+      '$totalUnreadCount رسالة جديدة من $conversationCount محادثة',
+      notificationDetails,
+      payload: 'summary',
+    );
+  }
+
+  /// Clear message notifications for a specific user
+  Future<void> clearMessageNotifications(int userId) async {
+    await _notifications.cancel(userId);
+    _userMessages.remove(userId);
+    _userNames.remove(userId);
+  }
+
+  /// Clear all message notifications
+  Future<void> clearAllMessageNotifications() async {
+    _userMessages.clear();
+    _userNames.clear();
+    // Cancel all notifications except download ones
+    await _notifications.cancelAll();
+  }
+
   /// Open a file using the system default app
   Future<void> openFile(String filePath) async {
     try {
@@ -199,4 +323,14 @@ class NotificationService {
 
   /// Get the last downloaded file path
   String? get lastDownloadedFilePath => _lastDownloadedFilePath;
+
+  /// Set active conversation (to prevent notifications for this user)
+  void setActiveConversation(int? userId) {
+    _activeConversationUserId = userId;
+  }
+
+  /// Check if user is in active conversation
+  bool isInActiveConversation(int userId) {
+    return _activeConversationUserId == userId;
+  }
 }

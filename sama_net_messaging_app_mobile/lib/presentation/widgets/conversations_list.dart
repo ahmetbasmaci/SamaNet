@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/di/service_locator.dart';
 import '../../data/services/message_service.dart';
+import '../../data/services/notification_service.dart';
 import 'conversation_tile.dart';
 import '../../data/services/local_storage_service.dart';
 import '../../data/services/realtime_chat_service.dart';
@@ -25,6 +26,7 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
   List<Conversation> _conversations = [];
   late LocalStorageService _localStorage;
   late MessageService _messageService;
+  late NotificationService _notificationService;
   late RealtimeChatService _realtimeChatService;
   late ConversationUpdateNotifier _updateNotifier;
   User? _currentUser;
@@ -65,15 +67,37 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
   void _initializeServices() {
     _localStorage = serviceLocator.get<LocalStorageService>();
     _messageService = serviceLocator.get<MessageService>();
+    _notificationService = serviceLocator.get<NotificationService>();
     _realtimeChatService = serviceLocator.get<RealtimeChatService>();
     _updateNotifier = serviceLocator.get<ConversationUpdateNotifier>();
   }
 
   void _setupUpdateListener() {
-    _updateSubscription = _updateNotifier.updateStream.listen((_) {
-      // Refresh conversations when update is triggered
-      refreshConversations();
+    _updateSubscription = _updateNotifier.updateStream.listen((update) {
+      // Handle specific conversation unread count updates
+      if (update.otherUserId != null && update.unreadCount != null) {
+        // Immediate update for specific conversation unread count
+        _updateConversationUnreadCount(update.otherUserId!, update.unreadCount!);
+      }
+      // Handle full refresh requests (always refresh when requested)
+      if (update.fullRefresh) {
+        // Refresh conversations when full update is triggered
+        refreshConversations();
+      }
     });
+  }
+
+  void _updateConversationUnreadCount(int otherUserId, int unreadCount) {
+    final index = _conversations.indexWhere((c) => c.otherUser.id == otherUserId);
+    if (index != -1 && mounted) {
+      print(
+          'DEBUG: Updating unread count for user $otherUserId to $unreadCount (was ${_conversations[index].unreadCount})');
+      setState(() {
+        _conversations[index] = _conversations[index].copyWith(unreadCount: unreadCount);
+      });
+    } else {
+      print('DEBUG: Could not find conversation for user $otherUserId to update unread count');
+    }
   }
 
   /// Public method to refresh conversations (can be called from parent widgets)
@@ -94,10 +118,10 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
       }
     } catch (e) {
       print('Error loading current user: $e');
-      if(mounted){
+      if (mounted) {
         setState(() {
-        _isLoading = false;
-      });
+          _isLoading = false;
+        });
       }
     }
   }
@@ -117,8 +141,7 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
     _messageReceivedSubscription?.cancel();
     _messageSentSubscription?.cancel();
 
-    _messageReceivedSubscription =
-        _realtimeChatService.onMessageReceived.listen(_handleRealtimeIncomingMessage);
+    _messageReceivedSubscription = _realtimeChatService.onMessageReceived.listen(_handleRealtimeIncomingMessage);
     _messageSentSubscription = _realtimeChatService.onMessageSent.listen(_handleRealtimeOutgoingMessage);
   }
 
@@ -134,8 +157,10 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
     try {
       final response = await _messageService.getRecentConversations(limit: 20);
       if (response.isSuccess && response.data != null) {
-        final conversations = [...response.data!]
-          ..sort((a, b) => b.lastActivity.compareTo(a.lastActivity));
+        // Filter out conversations with self (where otherUser.id == currentUser.id)
+        final filteredConversations =
+            response.data!.where((conversation) => conversation.otherUser.id != _currentUser!.id).toList();
+        final conversations = [...filteredConversations]..sort((a, b) => b.lastActivity.compareTo(a.lastActivity));
         setState(() {
           _conversations = conversations;
           _isLoading = false;
@@ -155,11 +180,71 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
     }
   }
 
-  void _handleRealtimeIncomingMessage(Message message) {
+  void _handleRealtimeIncomingMessage(Message message) async {
     final currentUserId = _currentUser?.id;
     if (currentUserId == null || message.receiverId != currentUserId) return;
 
+    // Show notification for incoming message
+    await _showMessageNotification(message);
+
     _applyRealtimeUpdate(message: message, otherUserId: message.senderId, isIncoming: true);
+  }
+
+  Future<void> _showMessageNotification(Message message) async {
+    try {
+      // Don't show notification if this conversation is currently open
+      if (_notificationService.isInActiveConversation(message.senderId)) {
+        return;
+      }
+
+      // Check if notifications are enabled
+      final notificationsEnabled = await _notificationService.areNotificationsEnabled();
+      if (!notificationsEnabled) return;
+
+      // Get sender name
+      final senderName = message.senderUsername ?? 'مستخدم';
+
+      // Get message content
+      String messageContent;
+      if (message.messageType == 'text') {
+        messageContent = message.content ?? '';
+      } else if (message.messageType == 'image') {
+        messageContent = '📷 صورة';
+      } else if (message.messageType == 'file') {
+        messageContent = '📎 ملف';
+      } else {
+        messageContent = 'رسالة جديدة';
+      }
+
+      // Get unread count for this conversation
+      int unreadCount = 1;
+      final conversation = _conversations.firstWhere(
+        (c) => c.otherUser.id == message.senderId,
+        orElse: () => Conversation(
+          id: 0,
+          otherUser: User(
+            id: message.senderId,
+            username: senderName,
+            phoneNumber: '',
+            createdAt: DateTime.now(),
+          ),
+          lastMessage: message,
+          unreadCount: 0,
+          lastActivity: message.sentAt,
+        ),
+      );
+      unreadCount = conversation.unreadCount + 1;
+
+      // Show notification
+      await _notificationService.showMessageNotification(
+        senderId: message.senderId,
+        senderName: senderName,
+        messageContent: messageContent,
+        unreadCount: unreadCount,
+      );
+    } catch (e) {
+      print('Error showing message notification: $e');
+    }
   }
 
   void _handleRealtimeOutgoingMessage(Message message) {
@@ -178,9 +263,13 @@ class _ConversationsListState extends State<ConversationsList> with WidgetsBindi
 
     if (index != -1) {
       final existing = _conversations[index];
+      final newUnreadCount = isIncoming ? existing.unreadCount + 1 : existing.unreadCount;
+      print(
+          'DEBUG _applyRealtimeUpdate: otherUserId=$otherUserId, isIncoming=$isIncoming, oldCount=${existing.unreadCount}, newCount=$newUnreadCount');
+
       final updatedConversation = existing.copyWith(
         lastMessage: message,
-        unreadCount: isIncoming ? existing.unreadCount + 1 : existing.unreadCount,
+        unreadCount: newUnreadCount,
         lastActivity: message.sentAt,
       );
 

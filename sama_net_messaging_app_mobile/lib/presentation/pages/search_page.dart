@@ -89,6 +89,7 @@ class _SearchPageState extends State<SearchPage> {
       final response = await _userService.searchUsersByUsername(username);
 
       if (response.isSuccess && response.data != null) {
+        print(_currentUser!.name);
         // Filter out current user from results
         final filteredResults = response.data!.where((user) {
           return _currentUser == null || user.id != _currentUser!.id;

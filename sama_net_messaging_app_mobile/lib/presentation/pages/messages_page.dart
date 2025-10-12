@@ -13,6 +13,7 @@ import '../../data/services/message_status_service.dart';
 import '../../data/services/file_service.dart';
 import '../../data/services/realtime_chat_service.dart';
 import '../../data/services/user_block_service.dart';
+import '../../data/services/notification_service.dart';
 import '../widgets/message_bubble.dart';
 import '../../core/di/service_locator.dart';
 import '../../core/services/conversation_update_notifier.dart';
@@ -40,6 +41,7 @@ class _MessagesPageState extends State<MessagesPage> {
   late ConversationUpdateNotifier _updateNotifier;
   late RealtimeChatService _realtimeChatService;
   late UserBlockService _userBlockService;
+  late NotificationService _notificationService;
   StreamSubscription<Message>? _messageReceivedSubscription;
   StreamSubscription<Message>? _messageSentSubscription;
   StreamSubscription<MessageDeliveryUpdate>? _messageDeliveredSubscription;
@@ -72,6 +74,7 @@ class _MessagesPageState extends State<MessagesPage> {
     _updateNotifier = serviceLocator.get<ConversationUpdateNotifier>();
     _realtimeChatService = serviceLocator.get<RealtimeChatService>();
     _userBlockService = serviceLocator.get<UserBlockService>();
+    _notificationService = serviceLocator.get<NotificationService>();
   }
 
   @override
@@ -79,6 +82,8 @@ class _MessagesPageState extends State<MessagesPage> {
     _messageController.dispose();
     _scrollController.dispose();
     _disposeRealtimeListeners();
+    // Clear active conversation when leaving this page
+    _notificationService.setActiveConversation(null);
     // Notify conversations to update when leaving this page
     _updateNotifier.notifyConversationUpdate();
     super.dispose();
@@ -110,6 +115,10 @@ class _MessagesPageState extends State<MessagesPage> {
     setState(() => _isLoading = true);
 
     try {
+      // Set this conversation as active and clear notifications
+      _notificationService.setActiveConversation(widget.chatUser.id);
+      await _notificationService.clearMessageNotifications(widget.chatUser.id);
+
       // Load conversation messages
       final response = await _messageService.getConversation(otherUserId: widget.chatUser.id);
       if (response.isSuccess && response.data != null) {
@@ -198,20 +207,31 @@ class _MessagesPageState extends State<MessagesPage> {
 
     if (!mounted) return;
 
+    // Mark the message as read immediately with current timestamp
+    final readMessage = message.copyWith(
+      readAt: DateTime.now(),
+      deliveredAt: message.deliveredAt ?? DateTime.now(),
+    );
+
     if (existingIndex == -1) {
-      final updatedMessages = [..._messages, message]..sort((a, b) => a.sentAt.compareTo(b.sentAt));
+      final updatedMessages = [..._messages, readMessage]..sort((a, b) => a.sentAt.compareTo(b.sentAt));
       setState(() {
         _messages = updatedMessages;
       });
     } else {
       setState(() {
-        _messages[existingIndex] = message;
+        _messages[existingIndex] = readMessage;
       });
     }
 
     _scrollToBottom();
     _updateNotifier.notifyConversationUpdate();
 
+    // Update the conversation's unread count to 0 since we're marking it as read
+    print('DEBUG: Marking conversation with ${widget.chatUser.id} as read (unread count = 0)');
+    _updateNotifier.notifyUnreadCountUpdate(widget.chatUser.id, 0);
+
+    // Mark as read on server
     unawaited(
       _realtimeChatService.markMessageAsRead(message.id).catchError((error) {
         if (kDebugMode) {
